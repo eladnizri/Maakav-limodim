@@ -153,7 +153,7 @@
   .vc-progress-fill { height: 100%; background: var(--accent); border-radius: 10px; transition: width 0.4s ease; }
 
   .vc-scene { perspective: 1600px; margin-bottom: 16px; }
-  .vc-card { position: relative; width: 100%; height: 272px; transform-style: preserve-3d; transition: transform 0.55s cubic-bezier(.2,.7,.3,1); cursor: pointer; }
+  .vc-card { position: relative; width: 100%; height: 272px; transform-style: preserve-3d; transition: transform 0.6s cubic-bezier(.2,.85,.3,1.05); cursor: pointer; will-change: transform; }
   .vc-card.flipped { transform: rotateY(180deg); }
   .vc-face { position: absolute; inset: 0; backface-visibility: hidden; background: var(--card); border-radius: 20px; box-shadow: var(--shadow); display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 28px 22px; text-align: center; }
   .vc-face-back { transform: rotateY(180deg); background: linear-gradient(160deg, #FBF9F3, #F5F0E6); }
@@ -190,6 +190,36 @@
   .vc-quiz-next { width: 100%; margin-top: 16px; background: var(--accent); color: #fff; border: none; padding: 15px; border-radius: 14px; font-family: inherit; font-weight: 700; font-size: 0.96em; cursor: pointer; transition: all 0.2s; }
   .vc-quiz-next:active { background: var(--accent-dark); transform: scale(0.985); }
   .vc-empty { text-align: center; padding: 44px 20px; color: var(--muted); font-size: 0.92em; line-height: 1.6; }
+
+  /* ===== Score chart ===== */
+  .score-chart-wrap { background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow); padding: 16px 14px 12px; margin-bottom: 12px; }
+  .score-chart-wrap .sc-title { font-size: 0.82em; color: var(--muted); font-weight: 700; margin-bottom: 8px; letter-spacing: 0.02em; padding: 0 2px; }
+  .score-chart-wrap svg { display: block; width: 100%; height: auto; direction: ltr; overflow: visible; }
+
+  /* ===== Vocab stats & review ===== */
+  .vc-stats { display: flex; gap: 8px; padding: 0 3px 10px; }
+  .vc-stat-pill { flex: 1; background: var(--card); border: 1px solid var(--border); border-radius: 13px; padding: 10px 6px; text-align: center; box-shadow: var(--shadow-sm); }
+  .vc-stat-pill .n { font-family: 'Suez One', serif; font-size: 1.32em; line-height: 1; }
+  .vc-stat-pill .l { font-size: 0.66em; color: var(--muted); margin-top: 5px; font-weight: 600; letter-spacing: 0.02em; }
+  .vc-stat-pill.known .n { color: var(--success); }
+  .vc-stat-pill.unknown .n { color: var(--danger); }
+  .vc-stat-pill.fresh .n { color: var(--muted); }
+  .vc-review-btn { width: 100%; background: var(--inset); color: var(--text); border: 1px solid var(--border); border-radius: 12px; padding: 11px; font-family: inherit; font-size: 0.85em; font-weight: 700; cursor: pointer; margin-bottom: 14px; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 7px; }
+  .vc-review-btn svg { flex-shrink: 0; }
+  .vc-review-btn:active { transform: scale(0.99); }
+  .vc-review-btn.active { background: var(--accent-soft); color: var(--accent-dark); border-color: var(--accent); }
+
+  /* ===== Speak button ===== */
+  .vc-speak { position: absolute; top: 14px; left: 14px; width: 34px; height: 34px; border-radius: 11px; border: none; background: var(--primary-soft); color: var(--primary); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: transform 0.12s, background 0.2s; z-index: 3; }
+  .vc-face-back .vc-speak { background: var(--accent-soft); color: var(--accent-dark); }
+  .vc-speak:active { transform: scale(0.88); }
+  .vc-speak.speaking { animation: vcSpeakPulse 0.9s ease infinite; }
+  .vc-speak svg { width: 18px; height: 18px; }
+  @keyframes vcSpeakPulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.12); } }
+
+  /* ===== Improved flip ===== */
+  .vc-scene.flip-anim { animation: vcScenePop 0.55s cubic-bezier(.34,1.35,.5,1); }
+  @keyframes vcScenePop { 0% { transform: scale(1); } 45% { transform: scale(1.035); } 100% { transform: scale(1); } }
 </style>
 </head>
 <body>
@@ -240,6 +270,7 @@
       <div class="stat"><div class="num" id="scoreCount">0</div><div class="lbl">סימולציות</div></div>
       <div class="stat"><div class="num" id="scoreLast">-</div><div class="lbl">ציון אחרון</div></div>
     </div>
+    <div id="scoreChart" class="score-chart-wrap" style="display:none;"></div>
     <button class="btn" onclick="openScoreForm()" style="margin-bottom:12px;">הוספת ציון סימולציה</button>
     <div id="scoreForm" class="info-card" style="display:none;">
       <div class="field">
@@ -299,15 +330,19 @@
         <div class="vc-progress-track"><div class="vc-progress-fill" id="vcProgFill"></div></div>
         <span id="vcProgPct">0%</span>
       </div>
-      <div class="vc-scene">
+      <div class="vc-stats" id="vcStats"></div>
+      <button class="vc-review-btn" id="vcReviewBtn" onclick="vcToggleReview()"><svg viewBox="0 0 24 24" width="15" height="15" fill="none"><path d="M4 12a8 8 0 0113.9-5.5M20 12a8 8 0 01-13.9 5.5" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/><path d="M18 3v4h-4M6 21v-4h4" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg><span id="vcReviewLbl">חזרה על מילים שלא ידעתי</span></button>
+      <div class="vc-scene" id="vcScene">
         <div class="vc-card" id="vcCard" onclick="vcFlip()">
           <div class="vc-face">
             <div class="vc-badge" id="vcFrontBadge">יחידה 1</div>
+            <button class="vc-speak" id="vcSpeakFront" onclick="vcSpeakCurrent(event)" aria-label="השמעת המילה"><svg viewBox="0 0 24 24" fill="none"><path d="M11 5L6 9H2v6h4l5 4V5z" fill="currentColor"/><path d="M15.5 8.5a5 5 0 010 7M18.5 6a8.5 8.5 0 010 12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button>
             <div id="vcFrontTerm" class="vc-term-he">מילה</div>
             <div class="vc-flip-hint">הקש כדי לגלות</div>
           </div>
           <div class="vc-face vc-face-back">
             <div class="vc-badge" id="vcBackBadge">יחידה 1</div>
+            <button class="vc-speak" id="vcSpeakBack" onclick="vcSpeakCurrent(event)" aria-label="השמעת המילה"><svg viewBox="0 0 24 24" fill="none"><path d="M11 5L6 9H2v6h4l5 4V5z" fill="currentColor"/><path d="M15.5 8.5a5 5 0 010 7M18.5 6a8.5 8.5 0 010 12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button>
             <div id="vcBackTerm" class="vc-def-he">הפירוש</div>
           </div>
         </div>
@@ -587,6 +622,7 @@ function deleteScore(id) {
 }
 function renderScores() {
   const scores = data.scores || [];
+  renderScoreChart();
   if (scores.length === 0) {
     document.getElementById('scoreAvg').textContent = '-';
     document.getElementById('scoreMax').textContent = '-';
@@ -619,6 +655,47 @@ function renderScores() {
     '</div>';
   });
   document.getElementById('scoresList').innerHTML = html;
+}
+function renderScoreChart() {
+  const el = document.getElementById('scoreChart');
+  if (!el) return;
+  const scores = [...(data.scores || [])].sort((a,b) => new Date(a.date) - new Date(b.date));
+  if (scores.length < 2) { el.style.display = 'none'; el.innerHTML = ''; return; }
+  el.style.display = 'block';
+  const W = 320, H = 158, padL = 34, padR = 14, padT = 16, padB = 30;
+  const vals = scores.map(s => s.score);
+  const dataMin = Math.min(...vals), dataMax = Math.max(...vals), maxV = dataMax;
+  const span = (dataMax - dataMin) || 60;
+  let lo = Math.max(200, Math.floor((dataMin - span*0.25)/10)*10);
+  let hi = Math.min(800, Math.ceil((dataMax + span*0.25)/10)*10);
+  if (hi - lo < 40) { hi = Math.min(800, lo + 40); lo = Math.max(200, hi - 40); }
+  const n = scores.length;
+  const X = i => padL + (i/(n-1))*(W-padL-padR);
+  const Y = v => padT + (1-(v-lo)/(hi-lo))*(H-padT-padB);
+  const line = scores.map((s,i) => (i?'L':'M') + X(i).toFixed(1) + ' ' + Y(s.score).toFixed(1)).join(' ');
+  const area = line + ' L' + X(n-1).toFixed(1) + ' ' + (H-padB) + ' L' + X(0).toFixed(1) + ' ' + (H-padB) + ' Z';
+  const mid = Math.round((hi+lo)/2/10)*10;
+  let grid = '';
+  [hi, mid, lo].forEach(v => {
+    const yy = Y(v).toFixed(1);
+    grid += '<line x1="' + padL + '" y1="' + yy + '" x2="' + (W-padR) + '" y2="' + yy + '" style="stroke:var(--border)" stroke-width="1"/>';
+    grid += '<text x="' + (padL-6) + '" y="' + (parseFloat(yy)+3).toFixed(1) + '" text-anchor="end" font-size="9" style="fill:var(--muted)">' + v + '</text>';
+  });
+  let dots = '';
+  scores.forEach((s,i) => {
+    const isMax = s.score === maxV;
+    dots += '<circle cx="' + X(i).toFixed(1) + '" cy="' + Y(s.score).toFixed(1) + '" r="' + (isMax?4.5:3.2) + '" style="fill:' + (isMax?'var(--accent)':'var(--primary)') + ';stroke:var(--card)" stroke-width="1.5"/>';
+  });
+  const fmt = d => new Date(d).toLocaleDateString('he-IL', { day:'numeric', month:'numeric' });
+  const firstLbl = '<text x="' + X(0).toFixed(1) + '" y="' + (H-8) + '" text-anchor="start" font-size="9" style="fill:var(--muted)">' + fmt(scores[0].date) + '</text>';
+  const lastLbl = '<text x="' + X(n-1).toFixed(1) + '" y="' + (H-8) + '" text-anchor="end" font-size="9" style="fill:var(--muted)">' + fmt(scores[n-1].date) + '</text>';
+  el.innerHTML = '<div class="sc-title">מגמת ציונים</div>' +
+    '<svg viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="xMidYMid meet">' +
+      grid +
+      '<path d="' + area + '" style="fill:var(--primary-soft)"/>' +
+      '<path d="' + line + '" fill="none" style="stroke:var(--primary)" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"/>' +
+      dots + firstLbl + lastLbl +
+    '</svg>';
 }
 function saveSettings() {
   data.settings.examDate = document.getElementById('examDate').value;
@@ -708,6 +785,7 @@ const VC = {
   unit: 'all',
   queue: [], qi: 0, current: null,
   quizPool: [], quizIdx: 0, quizRight: 0, quizTotal: 0, quizLocked: false,
+  reviewOnly: false,
   inited: false
 };
 function vcData() { return VC.dict === 'he' ? VOCAB_HE : VOCAB_EN; }
@@ -775,7 +853,8 @@ function vcSetUnit(u) {
 }
 /* ---- cards ---- */
 function vcBuildQueue() {
-  const pool = vcPool();
+  let pool = vcPool();
+  if (VC.reviewOnly) pool = pool.filter(w => vcStatusOf(w.id) === 'unknown');
   const unknown = [], known = [];
   pool.forEach(w => { (vcStatusOf(w.id) === 'known' ? known : unknown).push(w); });
   vcShuffle(unknown); vcShuffle(known);
@@ -787,11 +866,12 @@ function vcShowCard() {
   card.classList.remove('flipped');
   document.getElementById('vcAnswers').classList.add('hidden');
   vcUpdateProgress();
+  vcRenderStats();
   const front = document.getElementById('vcFrontTerm');
   const back = document.getElementById('vcBackTerm');
   if (VC.queue.length === 0) {
-    front.className = 'vc-term-he'; front.textContent = '🎉';
-    back.className = 'vc-def-he'; back.textContent = 'אין מילים ביחידה זו';
+    front.className = 'vc-term-he'; front.textContent = VC.reviewOnly ? '👏' : '🎉';
+    back.className = 'vc-def-he'; back.textContent = VC.reviewOnly ? 'אין מילים לחזרה — כל הכבוד!' : 'אין מילים ביחידה זו';
     VC.current = null; return;
   }
   if (VC.qi >= VC.queue.length) VC.qi = 0;
@@ -810,8 +890,55 @@ function vcShowCard() {
 function vcFlip() {
   if (!VC.current) return;
   const card = document.getElementById('vcCard');
+  const scene = document.getElementById('vcScene');
   card.classList.toggle('flipped');
+  if (scene) {
+    scene.classList.remove('flip-anim');
+    void scene.offsetWidth;
+    scene.classList.add('flip-anim');
+  }
   if (card.classList.contains('flipped')) document.getElementById('vcAnswers').classList.remove('hidden');
+}
+function vcRenderStats() {
+  const box = document.getElementById('vcStats');
+  if (!box) return;
+  const pool = vcPool();
+  let known = 0, unknown = 0, fresh = 0;
+  pool.forEach(w => { const st = vcStatusOf(w.id); if (st === 'known') known++; else if (st === 'unknown') unknown++; else fresh++; });
+  box.innerHTML =
+    '<div class="vc-stat-pill known"><div class="n">' + known + '</div><div class="l">ידעתי</div></div>' +
+    '<div class="vc-stat-pill unknown"><div class="n">' + unknown + '</div><div class="l">לא ידעתי</div></div>' +
+    '<div class="vc-stat-pill fresh"><div class="n">' + fresh + '</div><div class="l">לא נלמד</div></div>';
+  const btn = document.getElementById('vcReviewBtn');
+  if (btn) btn.classList.toggle('active', !!VC.reviewOnly);
+  const lbl = document.getElementById('vcReviewLbl');
+  if (lbl) lbl.textContent = VC.reviewOnly ? 'חוזרים על מילים שלא ידעת · ' + unknown : 'חזרה על מילים שלא ידעתי';
+}
+function vcToggleReview() {
+  VC.reviewOnly = !VC.reviewOnly;
+  vcBuildQueue();
+  vcShowCard();
+}
+function vcSpeak(text, lang, btn) {
+  if (!('speechSynthesis' in window) || !text) { toast('הקראה קולית לא נתמכת בדפדפן'); return; }
+  try {
+    window.speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = lang; u.rate = 0.9;
+    if (btn) {
+      btn.classList.add('speaking');
+      const clear = () => btn.classList.remove('speaking');
+      u.onend = clear; u.onerror = clear;
+    }
+    window.speechSynthesis.speak(u);
+  } catch (e) {}
+}
+function vcSpeakCurrent(ev) {
+  if (ev) ev.stopPropagation();
+  if (!VC.current) return;
+  const lang = VC.dict === 'en' ? 'en-US' : 'he-IL';
+  const btn = ev && ev.currentTarget ? ev.currentTarget : null;
+  vcSpeak(VC.current.word, lang, btn);
 }
 function vcMark(known) {
   if (!VC.current) return;
