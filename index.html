@@ -536,7 +536,7 @@ let data = {
   done: {}, openTopics: {}, notes: {}, images: {},
   scores: [],
   vocab: { he: {}, en: {} },
-  teacher: { chats: [], methods: [], activeId: null },
+  teacher: { chats: [], methods: [], activeId: null, mistakes: [], stats: { topics: {} } },
   settings: { examDate: '2026-12-04' }
 };
 let uiNotesOpen = {};
@@ -547,9 +547,12 @@ function load() {
   if (!data.vocab) data.vocab = { he: {}, en: {} };
   if (!data.vocab.he) data.vocab.he = {};
   if (!data.vocab.en) data.vocab.en = {};
-  if (!data.teacher) data.teacher = { chats: [], methods: [], activeId: null };
+  if (!data.teacher) data.teacher = { chats: [], methods: [], activeId: null, mistakes: [], stats: { topics: {} } };
   if (!Array.isArray(data.teacher.chats)) data.teacher.chats = [];
   if (!Array.isArray(data.teacher.methods)) data.teacher.methods = [];
+  if (!Array.isArray(data.teacher.mistakes)) data.teacher.mistakes = [];
+  if (!data.teacher.stats || typeof data.teacher.stats !== 'object') data.teacher.stats = { topics: {} };
+  if (!data.teacher.stats.topics) data.teacher.stats.topics = {};
   document.getElementById('examDate').value = data.settings.examDate;
 }
 function save() { localStorage.setItem('psychoTracker', JSON.stringify(data)); }
@@ -1351,18 +1354,30 @@ const TEACHER_PROMPT = `אתה מורה פרטי לבחינה הפסיכומטר
 - אם משהו בתמונה מטושטש, חתוך או לא חד־משמעי — אמור זאת ובקש הבהרה. אל תנחש ואל תמציא נתונים.
 - אם חסרות אפשרויות התשובה, בקש אותן לפני שאתה פותר.
 
+## מה שהתלמיד כבר יודע
+בסוף ההנחיות האלה עשויה להופיע רשימת "שיטות שהתלמיד כבר למד" ורשימת "נושאים חלשים".
+- אם השאלה נפתרת בשיטה שכבר ברשימה — אמור זאת בשמה ("זו השיטה שכבר למדת: ...") והזכר אותה בשורה, במקום ללמד מאפס.
+- בנושאים החלשים היזהר במיוחד: שלבים קטנים יותר, ובדוק הבנה לפני שאתה ממשיך.
+
 ## סגנון
 - עברית. מונחים מתמטיים ומילים באנגלית נשארים במקור.
 - בלי כותרות מודגשות, בלי רשימות ארוכות, בלי מבוא ובלי סיכום. ישר לעניין.
 - חישובים בשורות קצרות ונפרדות, מותאם למסך טלפון.
 - בפרק המילולי: אם אינך בטוח, אמור זאת במפורש. אל תציג ניחוש כוודאות.
 - אל תמציא שאלות פסיכומטריות חדשות אלא אם ביקשתי במפורש.
-- כשלימדת שיטה, סיים את ההודעה בשורה נפרדת בפורמט: ##METHOD## שם השיטה | תקציר בשורה אחת.`;
+
+## סמנים סמויים — חובה, המערכת קוראת אותם והם מוסתרים מהתלמיד
+- בתשובה הפותחת לכל שאלה חדשה, סיים בשורה נפרדת: ##TAG## פרק | נושא. הפרק הוא אחד מ: כמותי / מילולי / אנגלית. הנושא — אחד בלבד מהרשימה הסגורה הזו: אלגברה ומשוואות, חזקות ושורשים, שברים אחוזים ויחס, בעיות מילוליות, גאומטריה, גרפים וטבלאות, אנלוגיות, השלמת משפטים, הבנת הנקרא, היסק לוגי, Sentence Completion, Restatement, Reading Comprehension. בחר את הקרוב ביותר, אל תמציא נושא חדש.
+- אם התלמיד ענה תשובה שגויה או שהפתרון שלו שגוי, סיים בשורה נפרדת: ##MISTAKE## נושא | מה הייתה הטעות במשפט | הלקח במשפט. השתמש באותה רשימת נושאים.
+- כשלימדת שיטה, סיים בשורה נפרדת: ##METHOD## שם השיטה | תקציר בשורה אחת.
+- שורות הסמנים תמיד אחרונות, כל אחת בשורה משלה, בלי טקסט נוסף בשורה.`;
 
 let tcView = 'chat';   // 'chat' | 'history' | 'methods'
+let tcNbSeg = 'methods'; // active notebook segment: 'methods' | 'mistakes' | 'stats'
 let tcImg = {};        // messageId -> { url, mime, data }  (in-memory only, never persisted)
 let tcPending = null;  // staged image before sending
 let tcBusy = false;
+let tcLive = '';       // partial reply accumulated while streaming
 let tcError = null;
 let tcSeq = 0;
 function tcNewId() { return Date.now() * 1000 + (tcSeq++ % 1000); }
@@ -1409,7 +1424,19 @@ function teacherDeleteKey() {
 }
 
 function teacherActiveChat() { return data.teacher.chats.find(c => c.id === data.teacher.activeId) || null; }
+// Storage stays lean by dropping the oldest chats past a cap; the aggregated
+// stats and mistake records live outside the chats, so nothing is lost there.
+function teacherPruneChats() {
+  const MAX = 30;
+  if (data.teacher.chats.length <= MAX) return;
+  data.teacher.chats.sort((a, b) => new Date(a.date) - new Date(b.date));
+  while (data.teacher.chats.length > MAX) {
+    const dead = data.teacher.chats.shift();
+    if (dead && dead.id === data.teacher.activeId) data.teacher.activeId = null;
+  }
+}
 function teacherNewChat() {
+  teacherPruneChats();
   const chat = { id: tcNewId(), title: 'שיחה חדשה', date: new Date().toISOString(), messages: [] };
   data.teacher.chats.push(chat);
   data.teacher.activeId = chat.id;
@@ -1463,14 +1490,16 @@ function teacherRenderChat() {
   } else {
     chat.messages.forEach(m => { msgs += teacherBubbleHtml(m); });
   }
-  if (tcBusy) msgs += '<div class="tc-typing"><span></span><span></span><span></span></div>';
+  if (tcBusy) msgs += tcLive
+    ? '<div class="tc-bubble tc-model" id="tcLiveBubble">' + escapeHtml(tcLive) + '</div>'
+    : '<div class="tc-typing"><span></span><span></span><span></span></div>';
   else if (tcError) msgs += '<div class="tc-bubble tc-model tc-error">' + escapeHtml(tcError) + '<div><button class="tc-retry" onclick="teacherRetry()">נסה שוב</button></div></div>';
   const prev = tcPending ? '<div class="tc-imgprev"><img src="' + tcPending.url + '" alt=""><button onclick="teacherClearPending()">✕</button></div>' : '';
   root.innerHTML =
     '<div class="tc-toolbar">' +
       '<button class="tc-icon-btn" title="שיחה חדשה" onclick="teacherNewChat()"><svg viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>' +
       '<div class="tc-title">מורה</div>' +
-      '<button class="tc-icon-btn" title="השיטות שלי" onclick="teacherShow(\'methods\')"><svg viewBox="0 0 24 24" fill="none"><path d="M6 4h9l4 4v12H6z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M9 10h7M9 14h7M9 17h4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></button>' +
+      '<button class="tc-icon-btn" title="המחברת שלי" onclick="teacherShow(\'methods\')"><svg viewBox="0 0 24 24" fill="none"><path d="M6 4h9l4 4v12H6z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M9 10h7M9 14h7M9 17h4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></button>' +
       '<button class="tc-icon-btn" title="היסטוריה" onclick="teacherShow(\'history\')"><svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8.5" stroke="currentColor" stroke-width="1.7"/><path d="M12 7.5V12l3 2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>' +
     '</div>' +
     '<div class="tc-msgs" id="tcMsgs">' + msgs + '</div>' +
@@ -1567,17 +1596,7 @@ async function teacherSend() {
   if (t) t.value = '';
   save();
   tcBusy = true; teacherRender();
-  try {
-    const firstModelReply = !chat.messages.some(m => m.role === 'model');
-    const reply = await teacherCallApi(chat);
-    const res = teacherExtractMethod(reply);
-    chat.messages.push({ id: tcNewId(), role: 'model', text: res.clean });
-    if (res.method) teacherAddMethod(res.method);
-    if (firstModelReply) teacherTitleFromReply(chat, res.clean);
-    tcBusy = false; save(); teacherRender();
-  } catch (err) {
-    tcBusy = false; tcError = teacherErrText(err); teacherRender();
-  }
+  await teacherRunTurn(chat);
 }
 // The first line of the tutor's opening reply is the question type, which makes
 // a far more useful chat title than the first words the user typed.
@@ -1592,27 +1611,112 @@ async function teacherRetry() {
   const chat = teacherActiveChat();
   if (!chat || tcBusy) return;
   tcError = null; tcBusy = true; teacherRender();
+  await teacherRunTurn(chat);
+}
+// Shared request lifecycle for send and retry: stream the reply into a live
+// bubble, then persist the message and its notebook markers.
+async function teacherRunTurn(chat) {
+  tcLive = '';
   try {
-    const reply = await teacherCallApi(chat);
-    const res = teacherExtractMethod(reply);
+    const firstModelReply = !chat.messages.some(m => m.role === 'model');
+    const reply = await teacherCallApi(chat, teacherOnChunk);
+    const res = teacherExtractMarkers(reply);
     chat.messages.push({ id: tcNewId(), role: 'model', text: res.clean });
-    if (res.method) teacherAddMethod(res.method);
-    tcBusy = false; save(); teacherRender();
+    teacherApplyMarkers(chat, res);
+    if (firstModelReply) teacherTitleFromReply(chat, res.clean);
+    tcBusy = false; tcLive = ''; save(); teacherRender();
   } catch (err) {
-    tcBusy = false; tcError = teacherErrText(err); teacherRender();
+    tcBusy = false; tcLive = ''; tcError = teacherErrText(err); teacherRender();
   }
 }
-async function teacherCallApi(chat) {
-  const key = teacherGetKey();
-  if (!key) { const e = new Error('nokey'); e.status = 401; throw e; }
-  const contents = chat.messages.map(m => {
+// Streams the partial reply into the live bubble; a full re-render happens
+// only on the first chunk (when the bubble replaces the typing dots).
+function teacherOnChunk(txt) {
+  if (!txt) return;
+  tcLive = txt;
+  const el = document.getElementById('tcLiveBubble');
+  if (el) { el.textContent = txt; teacherScrollBottom(); }
+  else if (tcView === 'chat') teacherRender();
+}
+// Only the API payload is trimmed — the full conversation stays stored and
+// visible; older turns and images just stop being resent on every call.
+const TC_CTX_MSGS = 12;  // how many recent messages the model sees
+const TC_CTX_IMGS = 4;   // only messages this recent still carry their image
+function teacherBuildContents(chat) {
+  const total = chat.messages.length;
+  const imgCutoff = total - TC_CTX_IMGS;
+  return chat.messages.slice(-TC_CTX_MSGS).map((m, i, arr) => {
+    const idx = total - arr.length + i;
+    const img = m.role === 'user' ? tcImg[m.id] : null;
+    const recent = idx >= imgCutoff;
     const parts = [];
-    if (m.text) parts.push({ text: m.text });
-    const img = tcImg[m.id];
-    if (m.role === 'user' && img) parts.push({ inline_data: { mime_type: img.mime, data: img.data } });
+    let text = m.text || '';
+    if (img && !recent) text = (text ? text + '\n' : '') + '[צורפה תמונה בהודעה קודמת]';
+    if (text) parts.push({ text: text });
+    if (img && recent) parts.push({ inline_data: { mime_type: img.mime, data: img.data } });
     if (parts.length === 0) parts.push({ text: '' });
     return { role: m.role, parts: parts };
   });
+}
+// The base prompt plus what this student has already learned and where they
+// struggle, so the tutor builds on prior lessons instead of starting cold.
+function teacherSystemPrompt() {
+  let p = TEACHER_PROMPT;
+  const methods = data.teacher.methods.slice(-30);
+  if (methods.length) p += '\n\nשיטות שהתלמיד כבר למד:\n' + methods.map(m => '- ' + m.name + ' | ' + m.summary).join('\n');
+  const weak = Object.entries(data.teacher.stats.topics)
+    .filter(e => e[1].wrong > 0).sort((a, b) => b[1].wrong - a[1].wrong)
+    .slice(0, 3).map(e => e[0]);
+  if (weak.length) p += '\n\nנושאים חלשים של התלמיד (לפי טעויות): ' + weak.join(', ');
+  return p;
+}
+function teacherStreamEndpoint() { return TEACHER_API_BASE + 'models/' + teacherGetModel() + ':streamGenerateContent?alt=sse&key='; }
+// While streaming, hide marker lines — including a half-typed one at the tail.
+function teacherStreamDisplay(acc) {
+  return teacherCleanMath(acc.split('\n').filter(l => !/^[ \t>*_-]*##/.test(l)).join('\n')).trim();
+}
+async function teacherReadSse(res, onChunk) {
+  const reader = res.body.getReader();
+  const dec = new TextDecoder();
+  let buf = '', acc = '', finish = '';
+  while (true) {
+    let step;
+    try { step = await reader.read(); }
+    catch (e) { const err = new Error('network'); err.status = 0; throw err; }
+    if (step.done) break;
+    buf += dec.decode(step.value, { stream: true });
+    let nl;
+    while ((nl = buf.indexOf('\n')) !== -1) {
+      const line = buf.slice(0, nl).trim();
+      buf = buf.slice(nl + 1);
+      if (!line.startsWith('data:')) continue;
+      const payload = line.slice(5).trim();
+      if (!payload || payload === '[DONE]') continue;
+      try {
+        const j = JSON.parse(payload);
+        const cand = j.candidates && j.candidates[0];
+        if (cand) {
+          const parts = cand.content && cand.content.parts;
+          if (parts) acc += parts.map(p => p.text || '').join('');
+          if (cand.finishReason) finish = cand.finishReason;
+        }
+      } catch (e) {}
+    }
+    if (onChunk && acc) onChunk(teacherStreamDisplay(acc));
+  }
+  return { text: acc, finish: finish };
+}
+async function teacherHttpDetail(res) {
+  try {
+    const j = await res.json();
+    return (j && j.error && (j.error.status ? j.error.status + ': ' : '') + (j.error.message || '')) || '';
+  } catch (e) { return ''; }
+}
+async function teacherCallApi(chat, onChunk) {
+  const key = teacherGetKey();
+  if (!key) { const e = new Error('nokey'); e.status = 401; throw e; }
+  const contents = teacherBuildContents(chat);
+  const sys = teacherSystemPrompt();
   // Thinking adds noticeable latency and the tutor answers are meant to be short,
   // so it is disabled where the model allows it. Some models reject the field —
   // the first rejection is remembered so later calls skip it in one round trip.
@@ -1620,45 +1724,48 @@ async function teacherCallApi(chat) {
   const buildBody = drop => {
     const gen = { temperature: 0.4, maxOutputTokens: drop ? 3000 : 1200 };
     if (!drop) gen.thinkingConfig = { thinkingBudget: 0 };
-    return { systemInstruction: { parts: [{ text: TEACHER_PROMPT }] }, contents: contents, generationConfig: gen };
+    return JSON.stringify({ systemInstruction: { parts: [{ text: sys }] }, contents: contents, generationConfig: gen });
   };
-  const post = async drop => {
+  const attempt = async drop => {
+    // Streaming first; on transport trouble fall back to a plain call so a
+    // proxy or browser that chokes on SSE still gets an answer.
+    let sres = null;
     try {
-      return await fetch(teacherEndpoint() + encodeURIComponent(key), {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(buildBody(drop))
+      sres = await fetch(teacherStreamEndpoint() + encodeURIComponent(key), {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: buildBody(drop)
+      });
+    } catch (e) { sres = null; }
+    if (sres && sres.ok && sres.body && sres.body.getReader) return teacherReadSse(sres, onChunk);
+    if (sres && !sres.ok) {
+      const err = new Error('http'); err.status = sres.status; err.detail = await teacherHttpDetail(sres); throw err;
+    }
+    let res;
+    try {
+      res = await fetch(teacherEndpoint() + encodeURIComponent(key), {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: buildBody(drop)
       });
     } catch (e) { const err = new Error('network'); err.status = 0; throw err; }
-  };
-  let res = await post(dropThinking);
-  if (!res.ok) {
-    let detail = '';
-    try {
-      const j = await res.json();
-      detail = (j && j.error && (j.error.status ? j.error.status + ': ' : '') + (j.error.message || '')) || '';
-    } catch (e2) {}
-    if (res.status === 400 && !dropThinking && /thinking|unknown name|generationconfig/i.test(detail)) {
-      localStorage.setItem('geminiNoThinkCfg', '1');
-      dropThinking = true;
-      res = await post(true);
-    } else {
-      const err = new Error('http'); err.status = res.status; err.detail = detail; throw err;
+    if (!res.ok) {
+      const err = new Error('http'); err.status = res.status; err.detail = await teacherHttpDetail(res); throw err;
     }
+    const json = await res.json();
+    const cand = json && json.candidates && json.candidates[0];
+    const parts = cand && cand.content && cand.content.parts;
+    return { text: parts ? parts.map(p => p.text || '').join('') : '', finish: (cand && cand.finishReason) || '' };
+  };
+  let out;
+  try {
+    out = await attempt(dropThinking);
+  } catch (err) {
+    if (err.status === 400 && !dropThinking && /thinking|unknown name|generationconfig/i.test(err.detail || '')) {
+      localStorage.setItem('geminiNoThinkCfg', '1');
+      out = await attempt(true);
+    } else throw err;
   }
-  if (!res.ok) {
-    const err = new Error('http'); err.status = res.status;
-    try {
-      const j = await res.json();
-      err.detail = (j && j.error && (j.error.status ? j.error.status + ': ' : '') + (j.error.message || '')) || '';
-    } catch (e2) {}
-    throw err;
-  }
-  const json = await res.json();
-  const cand = json && json.candidates && json.candidates[0];
-  const parts = cand && cand.content && cand.content.parts;
-  const textOut = parts ? parts.map(p => p.text || '').join('').trim() : '';
+  const textOut = (out.text || '').trim();
   if (!textOut) {
     const err = new Error('empty'); err.status = -1;
-    if (cand && cand.finishReason === 'MAX_TOKENS') err.status = -2;
+    if (out.finish === 'MAX_TOKENS') err.status = -2;
     throw err;
   }
   return teacherCleanMath(textOut);
@@ -1704,12 +1811,42 @@ function teacherErrText(err) {
   if (s === -2) return 'התשובה נקטעה באמצע. נסה לשאול שאלה ממוקדת יותר.';
   return 'אירעה שגיאה' + (s ? ' (' + s + ')' : '') + '. נסה שוב.' + d;
 }
-function teacherExtractMethod(text) {
-  const re = /^[ \t>*_-]*##METHOD##\s*(.+?)\s*\|\s*(.+?)\s*$/m;
-  const match = text.match(re);
-  if (!match) return { clean: text.trim(), method: null };
-  const clean = text.replace(match[0], '').replace(/\n{3,}/g, '\n\n').trim();
-  return { clean: clean, method: { name: match[1].trim(), summary: match[2].trim() } };
+// Pulls the hidden ##METHOD## / ##TAG## / ##MISTAKE## marker lines out of a
+// reply: they feed the notebook (methods, stats, mistakes) and are never shown.
+function teacherExtractMarkers(text) {
+  const out = { clean: text, method: null, tag: null, mistake: null };
+  const mMethod = text.match(/^[ \t>*_-]*##METHOD##\s*(.+?)\s*\|\s*(.+?)\s*$/m);
+  if (mMethod) out.method = { name: mMethod[1].trim(), summary: mMethod[2].trim() };
+  const mTag = text.match(/^[ \t>*_-]*##TAG##\s*(.+?)\s*\|\s*(.+?)\s*$/m);
+  if (mTag) out.tag = { section: mTag[1].trim(), topic: mTag[2].trim() };
+  const mMistake = text.match(/^[ \t>*_-]*##MISTAKE##\s*(.+?)\s*\|\s*(.+?)\s*\|\s*(.+?)\s*$/m);
+  if (mMistake) out.mistake = { topic: mMistake[1].trim(), what: mMistake[2].trim(), lesson: mMistake[3].trim() };
+  out.clean = teacherStripMarkerLines(text);
+  return out;
+}
+function teacherStripMarkerLines(text) {
+  return text.split('\n').filter(l => !/^[ \t>*_-]*##[A-Z]+##/.test(l)).join('\n').replace(/\n{3,}/g, '\n\n').trim();
+}
+function teacherTopicStat(topic) {
+  const t = data.teacher.stats.topics;
+  if (!t[topic]) t[topic] = { asked: 0, wrong: 0 };
+  return t[topic];
+}
+// Applies a parsed reply's markers to the persistent notebook data.
+function teacherApplyMarkers(chat, res) {
+  if (res.method) teacherAddMethod(res.method);
+  if (res.tag && res.tag.topic) {
+    // Count each chat toward a topic once, on the first tag seen.
+    if (!chat.topic) {
+      chat.topic = res.tag.topic;
+      chat.section = res.tag.section;
+      teacherTopicStat(res.tag.topic).asked++;
+    }
+  }
+  if (res.mistake && res.mistake.topic) {
+    teacherTopicStat(res.mistake.topic).wrong++;
+    data.teacher.mistakes.push({ id: tcNewId(), date: new Date().toISOString(), topic: res.mistake.topic, what: res.mistake.what, lesson: res.mistake.lesson });
+  }
 }
 function teacherAddMethod(m) {
   const item = data.teacher.methods.find(x => x.name === m.name);
@@ -1748,12 +1885,30 @@ function teacherDeleteChat(id) {
     save(); teacherRenderHistory(); toast('השיחה נמחקה');
   });
 }
+function teacherNbSeg(seg) { tcNbSeg = seg; teacherRenderMethods(); }
 function teacherRenderMethods() {
   const root = document.getElementById('teacherRoot');
+  let body = '';
+  if (tcNbSeg === 'mistakes') body = teacherNbMistakesHtml();
+  else if (tcNbSeg === 'stats') body = teacherNbStatsHtml();
+  else body = teacherNbMethodsHtml();
+  root.innerHTML =
+    '<div class="tc-toolbar">' +
+      '<button class="tc-icon-btn" title="חזרה" onclick="teacherShow(\'chat\')"><svg viewBox="0 0 24 24" fill="none"><path d="M15 5l-7 7 7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>' +
+      '<div class="tc-title">המחברת שלי</div>' +
+    '</div>' +
+    '<div class="vc-seg accent" style="margin:10px 14px 0;">' +
+      '<button class="' + (tcNbSeg === 'methods' ? 'active' : '') + '" onclick="teacherNbSeg(\'methods\')">שיטות</button>' +
+      '<button class="' + (tcNbSeg === 'mistakes' ? 'active' : '') + '" onclick="teacherNbSeg(\'mistakes\')">טעויות</button>' +
+      '<button class="' + (tcNbSeg === 'stats' ? 'active' : '') + '" onclick="teacherNbSeg(\'stats\')">סטטיסטיקה</button>' +
+    '</div>' +
+    '<div class="tc-list">' + body + '</div>';
+}
+function teacherNbMethodsHtml() {
   const methods = [...data.teacher.methods].sort((a,b) => new Date(b.date) - new Date(a.date));
+  if (methods.length === 0) return '<div class="tc-empty-chat" style="flex:0;padding:40px 20px;line-height:1.6;">עדיין לא נשמרו שיטות.<br>כשהמורה ילמד אותך שיטה, היא תישמר כאן אוטומטית — וזמינה גם בלי אינטרנט.</div>';
   let list = '';
-  if (methods.length === 0) list = '<div class="tc-empty-chat" style="flex:0;padding:40px 20px;line-height:1.6;">עדיין לא נשמרו שיטות.<br>כשהמורה ילמד אותך שיטה, היא תישמר כאן אוטומטית — וזמינה גם בלי אינטרנט.</div>';
-  else methods.forEach(m => {
+  methods.forEach(m => {
     list += '<div class="tc-list-item">' +
       '<div class="tc-method-badge"><svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.6"/><path d="M8.5 12l2.2 2.2 4.8-4.8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></div>' +
       '<div class="tc-li-body">' +
@@ -1763,12 +1918,51 @@ function teacherRenderMethods() {
       '<button class="tc-li-del" onclick="teacherDeleteMethod(' + m.id + ')"><svg viewBox="0 0 24 24" fill="none"><path d="M5 7h14M10 7V5h4v2M6 7l1 12h10l1-12" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>' +
     '</div>';
   });
-  root.innerHTML =
-    '<div class="tc-toolbar">' +
-      '<button class="tc-icon-btn" title="חזרה" onclick="teacherShow(\'chat\')"><svg viewBox="0 0 24 24" fill="none"><path d="M15 5l-7 7 7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>' +
-      '<div class="tc-title">השיטות שלי</div>' +
-    '</div>' +
-    '<div class="tc-list">' + list + '</div>';
+  return list;
+}
+function teacherNbMistakesHtml() {
+  const mistakes = [...data.teacher.mistakes].sort((a,b) => new Date(b.date) - new Date(a.date));
+  if (mistakes.length === 0) return '<div class="tc-empty-chat" style="flex:0;padding:40px 20px;line-height:1.6;">עוד לא נרשמו טעויות — מצוין 💪<br>כשתטעה בשאלה אצל המורה, הטעות והלקח יישמרו כאן לחזרה לפני המבחן.</div>';
+  let list = '';
+  mistakes.forEach(m => {
+    const d = new Date(m.date).toLocaleDateString('he-IL');
+    list += '<div class="tc-list-item">' +
+      '<div class="tc-li-body">' +
+        '<div class="tc-li-title">' + escapeHtml(m.topic) + ' · <span style="font-weight:400;color:var(--muted);font-size:0.85em;">' + d + '</span></div>' +
+        '<div class="tc-li-sub">' + escapeHtml(m.what) + '</div>' +
+        '<div class="tc-li-sub" style="color:var(--accent-dark);">💡 ' + escapeHtml(m.lesson) + '</div>' +
+      '</div>' +
+      '<button class="tc-li-del" onclick="teacherDeleteMistake(' + m.id + ')"><svg viewBox="0 0 24 24" fill="none"><path d="M5 7h14M10 7V5h4v2M6 7l1 12h10l1-12" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>' +
+    '</div>';
+  });
+  return list;
+}
+function teacherNbStatsHtml() {
+  const entries = Object.entries(data.teacher.stats.topics).filter(e => e[1].asked > 0 || e[1].wrong > 0);
+  if (entries.length === 0) return '<div class="tc-empty-chat" style="flex:0;padding:40px 20px;line-height:1.6;">אין עדיין נתונים.<br>כל שאלה שתלמד עם המורה מתויגת לפי נושא — וכאן תראה איפה אתה חזק ואיפה כדאי לתרגל.</div>';
+  entries.sort((a,b) => (b[1].wrong - a[1].wrong) || (b[1].asked - a[1].asked));
+  const maxAsked = Math.max.apply(null, entries.map(e => e[1].asked).concat([1]));
+  let html = '';
+  const weakest = entries[0][1].wrong > 0 ? entries[0][0] : null;
+  if (weakest) html += '<div style="padding:12px 16px;margin:0 0 4px;font-size:0.9em;color:var(--danger);font-weight:700;">הנושא שדורש הכי הרבה תרגול: ' + escapeHtml(weakest) + '</div>';
+  entries.forEach(e => {
+    const name = e[0], s = e[1];
+    const pct = Math.round((s.asked / maxAsked) * 100);
+    html += '<div style="padding:8px 16px;">' +
+      '<div style="display:flex;justify-content:space-between;font-size:0.86em;margin-bottom:4px;">' +
+        '<span>' + escapeHtml(name) + '</span>' +
+        '<span style="color:var(--muted)">' + s.asked + ' שאלות · <span style="color:' + (s.wrong > 0 ? 'var(--danger)' : 'var(--success)') + '">' + s.wrong + ' טעויות</span></span>' +
+      '</div>' +
+      '<div class="topic-bar"><div class="topic-bar-fill" style="width:' + pct + '%"></div></div>' +
+    '</div>';
+  });
+  return html;
+}
+function teacherDeleteMistake(id) {
+  showConfirm('מחיקת טעות', 'למחוק את הרשומה מהמחברת?', 'מחק', () => {
+    data.teacher.mistakes = data.teacher.mistakes.filter(m => m.id !== id);
+    save(); teacherRenderMethods(); toast('נמחק');
+  });
 }
 function teacherDeleteMethod(id) {
   showConfirm('מחיקת שיטה', 'למחוק את השיטה מהרשימה?', 'מחק', () => {
