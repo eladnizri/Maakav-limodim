@@ -1371,10 +1371,34 @@ function teacherPickImage(input) {
   const reader = new FileReader();
   reader.onload = e => {
     const url = e.target.result;
-    tcPending = { url: url, mime: file.type, data: url.slice(url.indexOf(',') + 1) };
-    if (tcView === 'chat') teacherRender();
+    teacherCompressImage(url, 1280, 0.75).then(comp => {
+      tcPending = { url: comp.url, mime: comp.mime, data: comp.data };
+      if (tcView === 'chat') teacherRender();
+    }).catch(() => {
+      tcPending = { url: url, mime: file.type, data: url.slice(url.indexOf(',') + 1) };
+      if (tcView === 'chat') teacherRender();
+    });
   };
   reader.readAsDataURL(file);
+}
+function teacherCompressImage(dataUrl, maxDim, quality) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      let w = img.naturalWidth, h = img.naturalHeight;
+      if (w <= 0 || h <= 0) { reject(new Error('bad image')); return; }
+      const scale = Math.min(1, maxDim / Math.max(w, h));
+      w = Math.round(w * scale); h = Math.round(h * scale);
+      const canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, w, h);
+      const url = canvas.toDataURL('image/jpeg', quality);
+      resolve({ url: url, mime: 'image/jpeg', data: url.slice(url.indexOf(',') + 1) });
+    };
+    img.onerror = () => reject(new Error('load fail'));
+    img.src = dataUrl;
+  });
 }
 function teacherClearPending() { tcPending = null; teacherRender(); }
 async function teacherSend() {
@@ -1435,7 +1459,14 @@ async function teacherCallApi(chat) {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
     });
   } catch (e) { const err = new Error('network'); err.status = 0; throw err; }
-  if (!res.ok) { const err = new Error('http'); err.status = res.status; throw err; }
+  if (!res.ok) {
+    const err = new Error('http'); err.status = res.status;
+    try {
+      const j = await res.json();
+      err.detail = (j && j.error && (j.error.status ? j.error.status + ': ' : '') + (j.error.message || '')) || '';
+    } catch (e2) {}
+    throw err;
+  }
   const json = await res.json();
   const cand = json && json.candidates && json.candidates[0];
   const parts = cand && cand.content && cand.content.parts;
@@ -1445,11 +1476,12 @@ async function teacherCallApi(chat) {
 }
 function teacherErrText(err) {
   const s = err && err.status;
+  const d = err && err.detail ? ' [' + err.detail + ']' : '';
   if (s === 0) return 'אין חיבור לרשת. בדוק את האינטרנט ונסה שוב.';
-  if (s === 400 || s === 401 || s === 403) return 'נראה שמפתח ה-API שגוי או לא מורשה. בדוק אותו בהגדרות ונסה שוב.';
-  if (s === 429) return 'חרגת ממכסת השימוש (429). המתן דקה-שתיים ונסה שוב.';
+  if (s === 400 || s === 401 || s === 403) return 'נראה שמפתח ה-API שגוי או לא מורשה. בדוק אותו בהגדרות ונסה שוב.' + d;
+  if (s === 429) return 'חרגת ממכסת השימוש (429). המתן דקה-שתיים ונסה שוב.' + d;
   if (s === -1) return 'לא התקבלה תשובה מהמודל (ייתכן שהתוכן נחסם). נסח מחדש ונסה שוב.';
-  return 'אירעה שגיאה' + (s ? ' (' + s + ')' : '') + '. נסה שוב.';
+  return 'אירעה שגיאה' + (s ? ' (' + s + ')' : '') + '. נסה שוב.' + d;
 }
 function teacherExtractMethod(text) {
   const re = /^[ \t>*_-]*##METHOD##\s*(.+?)\s*\|\s*(.+?)\s*$/m;
