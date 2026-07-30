@@ -604,6 +604,18 @@ function renderTopics() {
   });
   document.getElementById('topicsList').innerHTML = html;
   updateOverall();
+  renderCountdown();
+}
+function renderCountdown() {
+  const el = document.getElementById('examCountdown');
+  const lbl = document.getElementById('examLabel');
+  if (!el || !data.settings || !data.settings.examDate) return;
+  const exam = new Date(data.settings.examDate);
+  const today = new Date(); today.setHours(0,0,0,0);
+  const days = Math.ceil((exam - today) / (1000*60*60*24));
+  if (isNaN(days)) { el.textContent = '--'; return; }
+  el.textContent = days > 0 ? days : (days === 0 ? '0' : '—');
+  if (lbl) lbl.textContent = days > 0 ? 'ימים למבחן' : (days === 0 ? 'יום המבחן הגיע!' : 'המבחן עבר');
 }
 function toggleTopic(ti) { data.openTopics[ti] = !data.openTopics[ti]; save(); renderTopics(); }
 function toggleNote(ti, si) {
@@ -835,7 +847,7 @@ function renderScoreChart() {
 }
 function saveSettings() {
   data.settings.examDate = document.getElementById('examDate').value;
-  save(); toast('נשמר');
+  save(); renderCountdown(); toast('נשמר');
 }
 function exportData() {
   const str = JSON.stringify(data, null, 2);
@@ -1265,6 +1277,9 @@ const TEACHER_PROMPT = `אתה מורה פרטי לבחינה הפסיכומטר
 
 ואז עצור. עד שאאשר — אסור לך לפתור, אסור לתת את התשובה הסופית, אסור לפרט שלבי פתרון, ואסור לחרוג מ-4 שורות הסבר. תשובה ארוכה היא כישלון.
 
+## חריג — כשאני מבקש ישר את התשובה
+אם ביקשתי במפורש את התשובה או לדלג על הדרך (למשל: "תן לי את התשובה", "רק התשובה", "דלג על ההסבר", "מה התשובה הנכונה", "בלי שאלות מנחות") — כבד את הבקשה מיד. תן את התשובה הסופית ישירות, ובשורה-שתיים בלבד את עיקר הדרך אליה. אל תתעקש ללמד בשלבים ואל תשאל אם להעמיק. חוק העל לא חל במקרה הזה.
+
 ## אחרי שאישרתי שנעמיק
 - שלב אחד בכל הודעה, עד 4 שורות, וסיים בשאלה מנחה אחת. חכה לתשובה שלי לפני השלב הבא.
 - אל תיתן את התשובה הסופית לפני שניסיתי. אם טעיתי — הצבע על השלב המדויק שבו נשברה הלוגיקה, אל תפתור מחדש מההתחלה.
@@ -1463,6 +1478,7 @@ function teacherRenderChat() {
       '<button class="tc-mode" onclick="teacherMode(\'הסבר לי את השאלה\')">הסבר לי את השאלה</button>' +
       '<button class="tc-mode" onclick="teacherMode(\'למד אותי את השיטה\')">למד אותי את השיטה</button>' +
       '<button class="tc-mode" onclick="teacherMode(\'בדוק את הפתרון שלי\')">בדוק את הפתרון שלי</button>' +
+      '<button class="tc-mode" onclick="teacherMode(\'רק התשובה הסופית, דלג על הדרך\')">רק התשובה</button>' +
     '</div>' +
     '<div class="tc-composer">' + prev +
       '<div class="tc-inputrow">' +
