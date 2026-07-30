@@ -1209,8 +1209,8 @@ function vcQuizAdvance() {
 }
 
 /* ===================== Teacher (Gemini) ===================== */
-const TEACHER_MODEL = 'gemini-2.5-flash';
-const TEACHER_ENDPOINT = 'https://generativelanguage.googleapis.com/v1beta/models/' + TEACHER_MODEL + ':generateContent?key=';
+const TEACHER_MODEL = 'gemini-2.0-flash';
+const TEACHER_ENDPOINT = 'https://generativelanguage.googleapis.com/v1/models/' + TEACHER_MODEL + ':generateContent?key=';
 const TEACHER_PROMPT = `אתה מורה פרטי לבחינה הפסיכומטרית הישראלית (מבחן PET), ואך ורק זה. אם נשאלת על נושא שאינו קשור לפסיכומטרי — סרב בקצרה והחזר את השיחה ללימוד.
 
 דרך העבודה שלך, בסדר הזה:
