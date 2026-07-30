@@ -411,16 +411,12 @@
       </div>
       <div class="field" style="margin-top:14px;">
         <label>מודל</label>
-        <select id="geminiModelSelect" onchange="teacherSaveModelFromSettings()">
-          <option value="gemini-2.0-flash">gemini-2.0-flash</option>
-          <option value="gemini-2.0-flash-lite">gemini-2.0-flash-lite</option>
-          <option value="gemini-2.5-flash">gemini-2.5-flash</option>
-          <option value="gemini-2.5-flash-lite">gemini-2.5-flash-lite</option>
-          <option value="gemini-1.5-flash">gemini-1.5-flash</option>
-          <option value="gemini-1.5-flash-8b">gemini-1.5-flash-8b</option>
-        </select>
+        <select id="geminiModelSelect" onchange="teacherSaveModelFromSettings()"></select>
       </div>
-      <div class="hint" style="margin-top:6px;">אם מודל אחד מחזיר שגיאת מכסה (429), נסה מודל אחר מהרשימה — למפתחות חינמיים יש לפעמים מכסה שונה לכל מודל.</div>
+      <button class="btn outline" onclick="teacherLoadModels()" style="margin-top:8px;">טעינת המודלים הזמינים למפתח שלי</button>
+      <div id="geminiModelsStatus" class="hint" style="margin-top:8px;">לחץ על הכפתור כדי לשאול את גוגל אילו מודלים המפתח שלך יכול להריץ בפועל.</div>
+      <button class="btn outline" onclick="teacherProbeModels()" style="margin-top:8px;">בדיקת מכסה לכל המודלים</button>
+      <div id="geminiProbeStatus" class="hint" style="margin-top:8px;"></div>
     </div>
     <div class="reset-link">
       <button class="btn danger-text" onclick="resetData()">איפוס כל הנתונים</button>
@@ -1221,10 +1217,86 @@ function vcQuizAdvance() {
 }
 
 /* ===================== Teacher (Gemini) ===================== */
+const TEACHER_API_BASE = 'https://generativelanguage.googleapis.com/v1beta/';
 const TEACHER_DEFAULT_MODEL = 'gemini-2.0-flash';
+const TEACHER_FALLBACK_MODELS = ['gemini-2.0-flash','gemini-2.0-flash-lite','gemini-2.5-flash','gemini-2.5-pro'];
 function teacherGetModel() { return (localStorage.getItem('geminiModel') || TEACHER_DEFAULT_MODEL).trim(); }
 function teacherSetModel(m) { if (m && m.trim()) localStorage.setItem('geminiModel', m.trim()); }
-function teacherEndpoint() { return 'https://generativelanguage.googleapis.com/v1/models/' + teacherGetModel() + ':generateContent?key='; }
+function teacherEndpoint() { return TEACHER_API_BASE + 'models/' + teacherGetModel() + ':generateContent?key='; }
+function teacherModelList() {
+  try {
+    const raw = localStorage.getItem('geminiModelList');
+    if (raw) { const a = JSON.parse(raw); if (Array.isArray(a) && a.length) return a; }
+  } catch (e) {}
+  return TEACHER_FALLBACK_MODELS.slice();
+}
+function teacherRenderModelOptions() {
+  const sel = document.getElementById('geminiModelSelect');
+  if (!sel) return;
+  const list = teacherModelList();
+  const cur = teacherGetModel();
+  if (list.indexOf(cur) === -1) list.unshift(cur);
+  sel.innerHTML = list.map(m => '<option value="' + m + '">' + m + '</option>').join('');
+  sel.value = cur;
+}
+async function teacherLoadModels() {
+  const key = teacherGetKey();
+  const st = document.getElementById('geminiModelsStatus');
+  if (!key) { toast('שמור מפתח API קודם'); return; }
+  if (st) st.textContent = 'טוען רשימת מודלים...';
+  try {
+    const res = await fetch(TEACHER_API_BASE + 'models?pageSize=200&key=' + encodeURIComponent(key));
+    const json = await res.json();
+    if (!res.ok) {
+      const msg = json && json.error ? (json.error.status + ': ' + json.error.message) : ('HTTP ' + res.status);
+      if (st) st.textContent = 'שגיאה בטעינת המודלים — ' + msg;
+      return;
+    }
+    const models = (json.models || [])
+      .filter(m => (m.supportedGenerationMethods || []).indexOf('generateContent') !== -1)
+      .map(m => (m.name || '').replace(/^models\//, ''))
+      .filter(n => n && n.indexOf('embedding') === -1);
+    if (!models.length) { if (st) st.textContent = 'לא נמצאו מודלים שתומכים בשיחה עבור המפתח הזה.'; return; }
+    localStorage.setItem('geminiModelList', JSON.stringify(models));
+    if (models.indexOf(teacherGetModel()) === -1) teacherSetModel(models[0]);
+    teacherRenderModelOptions();
+    if (st) st.textContent = 'נמצאו ' + models.length + ' מודלים זמינים. נבחר: ' + teacherGetModel();
+  } catch (e) {
+    if (st) st.textContent = 'שגיאת רשת בטעינת המודלים.';
+  }
+}
+async function teacherProbeModels() {
+  const key = teacherGetKey();
+  const st = document.getElementById('geminiProbeStatus');
+  if (!key) { toast('שמור מפתח API קודם'); return; }
+  const list = teacherModelList();
+  const lines = [];
+  let firstOk = '';
+  for (let i = 0; i < list.length; i++) {
+    const m = list[i];
+    if (st) st.innerHTML = 'בודק ' + (i+1) + '/' + list.length + ': ' + m + '...<br>' + lines.join('<br>');
+    let label;
+    try {
+      const res = await fetch(TEACHER_API_BASE + 'models/' + m + ':generateContent?key=' + encodeURIComponent(key), {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contents: [{ role: 'user', parts: [{ text: 'hi' }] }] })
+      });
+      if (res.ok) { label = '✓ עובד'; if (!firstOk) firstOk = m; }
+      else if (res.status === 429) label = '✗ אין מכסה (429)';
+      else if (res.status === 404) label = '✗ לא קיים (404)';
+      else label = '✗ שגיאה ' + res.status;
+    } catch (e) { label = '✗ שגיאת רשת'; }
+    lines.push(m + ' — ' + label);
+  }
+  if (firstOk) {
+    teacherSetModel(firstOk);
+    teacherRenderModelOptions();
+    lines.push('<b>נבחר אוטומטית: ' + firstOk + '</b>');
+  } else {
+    lines.push('<b>אף מודל לא זמין עם המפתח הזה.</b>');
+  }
+  if (st) st.innerHTML = lines.join('<br>');
+}
 const TEACHER_PROMPT = `אתה מורה פרטי לבחינה הפסיכומטרית הישראלית (מבחן PET), ואך ורק זה. אם נשאלת על נושא שאינו קשור לפסיכומטרי — סרב בקצרה והחזר את השיחה ללימוד.
 
 דרך העבודה שלך, בסדר הזה:
@@ -1262,8 +1334,7 @@ function teacherRefreshKeyStatus() {
   if (del) del.style.display = has ? 'block' : 'none';
   const inp = document.getElementById('geminiKeyInput');
   if (inp) inp.value = '';
-  const sel = document.getElementById('geminiModelSelect');
-  if (sel) sel.value = teacherGetModel();
+  teacherRenderModelOptions();
 }
 function teacherSaveModelFromSettings() {
   const sel = document.getElementById('geminiModelSelect');
