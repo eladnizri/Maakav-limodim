@@ -409,6 +409,18 @@
       <div id="geminiKeyDeleteWrap" style="display:none;margin-top:10px;">
         <button class="btn danger-text" onclick="teacherDeleteKey()">מחיקת המפתח מהמכשיר</button>
       </div>
+      <div class="field" style="margin-top:14px;">
+        <label>מודל</label>
+        <select id="geminiModelSelect" onchange="teacherSaveModelFromSettings()">
+          <option value="gemini-2.0-flash">gemini-2.0-flash</option>
+          <option value="gemini-2.0-flash-lite">gemini-2.0-flash-lite</option>
+          <option value="gemini-2.5-flash">gemini-2.5-flash</option>
+          <option value="gemini-2.5-flash-lite">gemini-2.5-flash-lite</option>
+          <option value="gemini-1.5-flash">gemini-1.5-flash</option>
+          <option value="gemini-1.5-flash-8b">gemini-1.5-flash-8b</option>
+        </select>
+      </div>
+      <div class="hint" style="margin-top:6px;">אם מודל אחד מחזיר שגיאת מכסה (429), נסה מודל אחר מהרשימה — למפתחות חינמיים יש לפעמים מכסה שונה לכל מודל.</div>
     </div>
     <div class="reset-link">
       <button class="btn danger-text" onclick="resetData()">איפוס כל הנתונים</button>
@@ -1209,8 +1221,10 @@ function vcQuizAdvance() {
 }
 
 /* ===================== Teacher (Gemini) ===================== */
-const TEACHER_MODEL = 'gemini-2.0-flash';
-const TEACHER_ENDPOINT = 'https://generativelanguage.googleapis.com/v1/models/' + TEACHER_MODEL + ':generateContent?key=';
+const TEACHER_DEFAULT_MODEL = 'gemini-2.0-flash';
+function teacherGetModel() { return (localStorage.getItem('geminiModel') || TEACHER_DEFAULT_MODEL).trim(); }
+function teacherSetModel(m) { if (m && m.trim()) localStorage.setItem('geminiModel', m.trim()); }
+function teacherEndpoint() { return 'https://generativelanguage.googleapis.com/v1/models/' + teacherGetModel() + ':generateContent?key='; }
 const TEACHER_PROMPT = `אתה מורה פרטי לבחינה הפסיכומטרית הישראלית (מבחן PET), ואך ורק זה. אם נשאלת על נושא שאינו קשור לפסיכומטרי — סרב בקצרה והחזר את השיחה ללימוד.
 
 דרך העבודה שלך, בסדר הזה:
@@ -1248,6 +1262,15 @@ function teacherRefreshKeyStatus() {
   if (del) del.style.display = has ? 'block' : 'none';
   const inp = document.getElementById('geminiKeyInput');
   if (inp) inp.value = '';
+  const sel = document.getElementById('geminiModelSelect');
+  if (sel) sel.value = teacherGetModel();
+}
+function teacherSaveModelFromSettings() {
+  const sel = document.getElementById('geminiModelSelect');
+  const v = sel ? sel.value : '';
+  if (!v) return;
+  teacherSetModel(v);
+  toast('המודל נשמר: ' + v);
 }
 function teacherSaveKeyFromSettings() {
   const inp = document.getElementById('geminiKeyInput');
@@ -1455,7 +1478,7 @@ async function teacherCallApi(chat) {
   const body = { systemInstruction: { parts: [{ text: TEACHER_PROMPT }] }, contents: contents };
   let res;
   try {
-    res = await fetch(TEACHER_ENDPOINT + encodeURIComponent(key), {
+    res = await fetch(teacherEndpoint() + encodeURIComponent(key), {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
     });
   } catch (e) { const err = new Error('network'); err.status = 0; throw err; }
