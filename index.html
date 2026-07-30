@@ -225,6 +225,75 @@
   /* ===== Improved flip ===== */
   .vc-scene.flip-anim { animation: vcScenePop 0.55s cubic-bezier(.34,1.35,.5,1); }
   @keyframes vcScenePop { 0% { transform: scale(1); } 45% { transform: scale(1.035); } 100% { transform: scale(1); } }
+
+  /* ===== Teacher (Gemini chat) ===== */
+  #tab-teacher.tab-content.active { display: flex; }
+  .tc-wrap { display: flex; flex-direction: column; width: 100%; height: calc(100dvh - 96px); }
+  .tc-toolbar { display: flex; align-items: center; gap: 8px; flex-shrink: 0; padding-bottom: 10px; }
+  .tc-toolbar .tc-title { font-weight: 700; font-size: 1.02em; flex: 1; letter-spacing: -0.01em; }
+  .tc-icon-btn { border: none; background: var(--inset); color: var(--text); width: 38px; height: 38px; border-radius: 11px; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; transition: all 0.2s; }
+  .tc-icon-btn:active { transform: scale(0.92); }
+  .tc-icon-btn svg { width: 19px; height: 19px; }
+  .tc-icon-btn.active { background: var(--accent-soft); color: var(--accent-dark); }
+
+  .tc-msgs { flex: 1 1 auto; overflow-y: auto; min-height: 0; display: flex; flex-direction: column; gap: 10px; padding: 4px 2px 8px; }
+  .tc-bubble { max-width: 86%; padding: 12px 14px; border-radius: 16px; font-size: 0.94em; line-height: 1.65; white-space: pre-wrap; word-break: break-word; direction: rtl; }
+  .tc-user { margin-left: auto; background: var(--primary); color: #fff; border-bottom-right-radius: 6px; }
+  .tc-model { margin-right: auto; background: var(--card); color: var(--text); box-shadow: var(--shadow-sm); border-bottom-left-radius: 6px; }
+  .tc-model.tc-error { background: var(--danger-soft); color: var(--danger); }
+  .tc-bubble img { max-width: 180px; max-height: 180px; border-radius: 10px; margin-bottom: 8px; display: block; }
+  .tc-retry { margin-top: 9px; background: var(--danger); color: #fff; border: none; border-radius: 9px; padding: 7px 14px; font-family: inherit; font-size: 0.82em; font-weight: 700; cursor: pointer; }
+  .tc-typing { margin-right: auto; background: var(--card); box-shadow: var(--shadow-sm); border-radius: 16px; border-bottom-left-radius: 6px; display: flex; gap: 5px; padding: 15px 16px; }
+  .tc-typing span { width: 7px; height: 7px; border-radius: 50%; background: var(--faint); animation: tcBlink 1.2s infinite; }
+  .tc-typing span:nth-child(2) { animation-delay: 0.2s; }
+  .tc-typing span:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes tcBlink { 0%,80%,100% { opacity: 0.3; } 40% { opacity: 1; } }
+
+  .tc-modes { display: flex; gap: 7px; flex-shrink: 0; overflow-x: auto; padding: 8px 0; scrollbar-width: none; }
+  .tc-modes::-webkit-scrollbar { display: none; }
+  .tc-mode { flex: 0 0 auto; border: 1px solid var(--border); background: var(--card); color: var(--primary); border-radius: 20px; padding: 8px 14px; font-family: inherit; font-size: 0.8em; font-weight: 700; cursor: pointer; white-space: nowrap; transition: all 0.15s; }
+  .tc-mode:active { background: var(--primary-soft); }
+
+  .tc-imgprev { position: relative; align-self: flex-start; margin-bottom: 8px; }
+  .tc-imgprev img { max-width: 84px; max-height: 84px; border-radius: 10px; display: block; }
+  .tc-imgprev button { position: absolute; top: -7px; left: -7px; width: 22px; height: 22px; border-radius: 50%; border: none; background: var(--danger); color: #fff; font-size: 0.8em; cursor: pointer; line-height: 1; }
+
+  .tc-composer { flex-shrink: 0; padding-bottom: env(safe-area-inset-bottom); }
+  .tc-inputrow { display: flex; align-items: flex-end; gap: 8px; background: var(--card); border: 1px solid var(--border); border-radius: 18px; padding: 7px 8px 7px 10px; box-shadow: var(--shadow-sm); }
+  .tc-inputrow textarea { flex: 1; border: none; background: transparent; resize: none; font-family: inherit; font-size: 0.95em; line-height: 1.5; color: var(--text); max-height: 120px; padding: 7px 4px; }
+  .tc-inputrow textarea:focus { outline: none; }
+  .tc-send, .tc-cam { border: none; border-radius: 13px; width: 40px; height: 40px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s; }
+  .tc-cam { background: var(--inset); color: var(--primary); }
+  .tc-send { background: var(--primary); color: #fff; }
+  .tc-send:active { transform: scale(0.92); background: var(--primary-dark); }
+  .tc-send:disabled { background: var(--faint); }
+  .tc-cam svg, .tc-send svg { width: 20px; height: 20px; }
+
+  /* Teacher setup / empty states */
+  .tc-setup { flex: 1; display: flex; flex-direction: column; justify-content: center; padding: 20px 6px; }
+  .tc-setup .tc-hero { text-align: center; margin-bottom: 22px; }
+  .tc-setup .tc-hero .tc-mark { width: 60px; height: 60px; border-radius: 18px; background: var(--primary-soft); color: var(--primary); display: inline-flex; align-items: center; justify-content: center; margin-bottom: 14px; }
+  .tc-setup .tc-hero .tc-mark svg { width: 32px; height: 32px; }
+  .tc-setup h2 { font-size: 1.25em; margin-bottom: 8px; letter-spacing: -0.01em; }
+  .tc-setup p { color: var(--muted); font-size: 0.92em; line-height: 1.6; }
+  .tc-setup a { color: var(--accent-dark); font-weight: 700; }
+  .tc-empty-chat { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; color: var(--muted); padding: 30px 24px; gap: 6px; }
+  .tc-empty-chat .tc-mark { width: 54px; height: 54px; border-radius: 16px; background: var(--primary-soft); color: var(--primary); display: flex; align-items: center; justify-content: center; margin-bottom: 6px; }
+  .tc-empty-chat .tc-mark svg { width: 28px; height: 28px; }
+
+  /* Teacher lists (history / methods) */
+  .tc-list { flex: 1; overflow-y: auto; min-height: 0; }
+  .tc-list-item { background: var(--card); border-radius: var(--radius-sm); box-shadow: var(--shadow-sm); padding: 14px 16px; margin-bottom: 10px; display: flex; align-items: center; gap: 12px; }
+  .tc-list-item .tc-li-body { flex: 1; min-width: 0; cursor: pointer; }
+  .tc-li-title { font-weight: 700; font-size: 0.96em; margin-bottom: 4px; }
+  .tc-li-sub { font-size: 0.8em; color: var(--muted); line-height: 1.4; }
+  .tc-li-del { border: none; background: none; color: var(--faint); cursor: pointer; padding: 6px; flex-shrink: 0; line-height: 0; }
+  .tc-li-del svg { width: 18px; height: 18px; }
+  .tc-method-badge { flex-shrink: 0; width: 34px; height: 34px; border-radius: 10px; background: var(--accent-soft); color: var(--accent-dark); display: flex; align-items: center; justify-content: center; }
+  .tc-method-badge svg { width: 18px; height: 18px; }
+  .tc-status { font-size: 0.82em; margin-top: 10px; font-weight: 600; }
+  .tc-status.ok { color: var(--success); }
+  .tc-status.off { color: var(--muted); }
 </style>
 </head>
 <body>
@@ -328,6 +397,19 @@
       <input type="file" id="importFile" accept="application/json,.json" style="display:none;" onchange="importData(this)">
       <button class="btn" onclick="document.getElementById('importFile').click()">ייבוא גיבוי</button>
     </div>
+    <div class="info-card">
+      <h3>מורה חכם (Gemini)</h3>
+      <div class="hint" style="margin-bottom:12px;">כדי להשתמש בטאב "מורה" הדבק מפתח Gemini API. המפתח נשמר רק במכשיר הזה, ולא נכלל בגיבוי. מפתח חינמי אפשר להשיג ב-<a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener" style="color:var(--accent-dark);font-weight:700;">Google AI Studio</a>.</div>
+      <div class="field">
+        <label>מפתח API</label>
+        <input type="password" id="geminiKeyInput" placeholder="הדבק מפתח כאן" autocomplete="off">
+      </div>
+      <button class="btn" onclick="teacherSaveKeyFromSettings()">שמירת מפתח</button>
+      <div id="geminiKeyStatus" class="tc-status off">לא הוגדר מפתח</div>
+      <div id="geminiKeyDeleteWrap" style="display:none;margin-top:10px;">
+        <button class="btn danger-text" onclick="teacherDeleteKey()">מחיקת המפתח מהמכשיר</button>
+      </div>
+    </div>
     <div class="reset-link">
       <button class="btn danger-text" onclick="resetData()">איפוס כל הנתונים</button>
     </div>
@@ -384,6 +466,11 @@
       <button class="vc-quiz-next" id="vcQuizNext" onclick="vcQuizAdvance()">הבא ←</button>
     </div>
   </div>
+
+  <div id="tab-teacher" class="tab-content">
+    <div id="teacherRoot" class="tc-wrap"></div>
+    <input type="file" id="tcImgInput" accept="image/*" style="display:none;" onchange="teacherPickImage(this)">
+  </div>
 </div>
 <div class="nav">
   <button class="active" data-tab="topics" onclick="switchTab('topics', this)">
@@ -401,6 +488,10 @@
   <button data-tab="words" onclick="switchTab('words', this)">
     <svg class="nav-icon" viewBox="0 0 24 24" fill="none"><path d="M4 5.5A1.5 1.5 0 015.5 4H11v15.5H5.5A1.5 1.5 0 014 18V5.5zM20 5.5A1.5 1.5 0 0018.5 4H13v15.5h5.5A1.5 1.5 0 0020 18V5.5z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>
     <span>מילים</span>
+  </button>
+  <button data-tab="teacher" onclick="switchTab('teacher', this)">
+    <svg class="nav-icon" viewBox="0 0 24 24" fill="none"><path d="M12 3l9 4.5-9 4.5-9-4.5L12 3z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M7 10v4.2c0 1.4 2.5 2.8 5 2.8s5-1.4 5-2.8V10" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M21 7.5V13" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+    <span>מורה</span>
   </button>
   <button data-tab="settings" onclick="switchTab('settings', this)">
     <svg class="nav-icon" viewBox="0 0 24 24" fill="none"><path d="M4 6h11M4 12h6M4 18h12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="17" cy="6" r="2" fill="currentColor"/><circle cx="13" cy="18" r="2" fill="currentColor"/></svg>
@@ -444,6 +535,7 @@ let data = {
   done: {}, openTopics: {}, notes: {}, images: {},
   scores: [],
   vocab: { he: {}, en: {} },
+  teacher: { chats: [], methods: [], activeId: null },
   settings: { examDate: '2026-12-04' }
 };
 let uiNotesOpen = {};
@@ -454,6 +546,9 @@ function load() {
   if (!data.vocab) data.vocab = { he: {}, en: {} };
   if (!data.vocab.he) data.vocab.he = {};
   if (!data.vocab.en) data.vocab.en = {};
+  if (!data.teacher) data.teacher = { chats: [], methods: [], activeId: null };
+  if (!Array.isArray(data.teacher.chats)) data.teacher.chats = [];
+  if (!Array.isArray(data.teacher.methods)) data.teacher.methods = [];
   document.getElementById('examDate').value = data.settings.examDate;
 }
 function save() { localStorage.setItem('psychoTracker', JSON.stringify(data)); }
@@ -845,10 +940,12 @@ function switchTab(name, btn) {
   document.querySelectorAll('.nav button').forEach(b => b.classList.remove('active'));
   document.getElementById('tab-'+name).classList.add('active');
   btn.classList.add('active');
-  document.getElementById('mainHeader').style.display = name === 'words' ? 'none' : 'block';
+  document.getElementById('mainHeader').style.display = (name === 'words' || name === 'teacher') ? 'none' : 'block';
   if (name === 'plan') renderPlan();
   if (name === 'scores') renderScores();
   if (name === 'words') vcInit();
+  if (name === 'teacher') teacherInit();
+  if (name === 'settings') teacherRefreshKeyStatus();
 }
 
 /* ================= Vocabulary module ================= */
@@ -1111,7 +1208,323 @@ function vcQuizAdvance() {
   vcShowQuiz();
 }
 
-load(); renderTopics(); renderPlan(); renderScores();
+/* ===================== Teacher (Gemini) ===================== */
+const TEACHER_MODEL = 'gemini-2.5-flash';
+const TEACHER_ENDPOINT = 'https://generativelanguage.googleapis.com/v1beta/models/' + TEACHER_MODEL + ':generateContent?key=';
+const TEACHER_PROMPT = `אתה מורה פרטי לבחינה הפסיכומטרית הישראלית (מבחן PET), ואך ורק זה. אם נשאלת על נושא שאינו קשור לפסיכומטרי — סרב בקצרה והחזר את השיחה ללימוד.
+
+דרך העבודה שלך, בסדר הזה:
+1. זהה ואמור בקול את סוג השאלה המדויק (למשל: אנלוגיה מסוג יחס פעולה-כלי / בעיית תנועה / הסקה מתרשים / השלמת משפט).
+2. נקוב בשם השיטה הייחודית לפסיכומטרי שפותרת את סוג השאלה הזה, והסבר את ההיגיון שמאחוריה.
+3. הובל אותי לפתרון בשאלות מנחות, שלב אחרי שלב. עצור אחרי כל שלב וחכה לתשובה שלי.
+4. אל תיתן את התשובה הסופית לפני שניסיתי. אם טעיתי — הצבע על השלב המדויק שבו נשברה הלוגיקה, אל תפתור מחדש מההתחלה.
+5. בסיום, אמור מה הסימן המזהה שיאפשר לי לזהות שאלה כזו מיד בפעם הבאה, ואיזו טעות נפוצה אורבת בה.
+
+כללים:
+- ענה בעברית. מונחים מתמטיים ומילים באנגלית נשארים במקור.
+- הצג חישובים בשורות נפרדות וקצרות, מותאם למסך טלפון.
+- הדגש קיצורי דרך וטריקים לחיסכון בזמן — זו בחינה מוגבלת בזמן.
+- אם קיבלת שאלה ללא כל ארבע האפשרויות, בקש אותן לפני שאתה פותר. אל תמציא אפשרויות.
+- בפרק המילולי בעברית: אם אינך בטוח, אמור זאת במפורש והצע לי להצליב מול פתרון הקורס. אל תציג ניחוש כוודאות.
+- אל תמציא שאלות פסיכומטריות חדשות אלא אם ביקשתי במפורש, ואז ציין שהן תרגול בלבד ולא בסגנון רשמי.
+- כשלימדת שיטה, סיים את ההודעה בשורה נפרדת בפורמט: ##METHOD## שם השיטה | תקציר בשורה אחת.`;
+
+let tcView = 'chat';   // 'chat' | 'history' | 'methods'
+let tcImg = {};        // messageId -> { url, mime, data }  (in-memory only, never persisted)
+let tcPending = null;  // staged image before sending
+let tcBusy = false;
+let tcError = null;
+let tcSeq = 0;
+function tcNewId() { return Date.now() * 1000 + (tcSeq++ % 1000); }
+
+function teacherGetKey() { return (localStorage.getItem('geminiKey') || '').trim(); }
+function teacherHasKey() { return teacherGetKey().length > 0; }
+function teacherSetKey(k) { if (k && k.trim()) localStorage.setItem('geminiKey', k.trim()); }
+function teacherRefreshKeyStatus() {
+  const has = teacherHasKey();
+  const st = document.getElementById('geminiKeyStatus');
+  if (st) { st.textContent = has ? 'מפתח מוגדר ✓' : 'לא הוגדר מפתח'; st.className = 'tc-status ' + (has ? 'ok' : 'off'); }
+  const del = document.getElementById('geminiKeyDeleteWrap');
+  if (del) del.style.display = has ? 'block' : 'none';
+  const inp = document.getElementById('geminiKeyInput');
+  if (inp) inp.value = '';
+}
+function teacherSaveKeyFromSettings() {
+  const inp = document.getElementById('geminiKeyInput');
+  const v = inp ? inp.value.trim() : '';
+  if (!v) { toast('הדבק מפתח קודם'); return; }
+  teacherSetKey(v); teacherRefreshKeyStatus(); toast('המפתח נשמר');
+}
+function teacherSaveKeyFromSetup() {
+  const inp = document.getElementById('tcSetupKey');
+  const v = inp ? inp.value.trim() : '';
+  if (!v) { toast('הדבק מפתח קודם'); return; }
+  teacherSetKey(v); teacherRefreshKeyStatus(); toast('המפתח נשמר'); teacherInit();
+}
+function teacherDeleteKey() {
+  showConfirm('מחיקת מפתח API', 'המפתח יימחק מהמכשיר הזה. תצטרך להדביק אותו שוב כדי להשתמש במורה.', 'מחק מפתח', () => {
+    localStorage.removeItem('geminiKey');
+    teacherRefreshKeyStatus();
+    if (document.getElementById('tab-teacher').classList.contains('active')) teacherInit();
+    toast('המפתח נמחק');
+  });
+}
+
+function teacherActiveChat() { return data.teacher.chats.find(c => c.id === data.teacher.activeId) || null; }
+function teacherNewChat() {
+  const chat = { id: tcNewId(), title: 'שיחה חדשה', date: new Date().toISOString(), messages: [] };
+  data.teacher.chats.push(chat);
+  data.teacher.activeId = chat.id;
+  tcImg = {}; tcPending = null; tcError = null; tcView = 'chat';
+  save(); teacherRender();
+}
+function teacherInit() {
+  if (!teacherHasKey()) { tcView = 'chat'; teacherRenderSetup(); return; }
+  if (!teacherActiveChat()) {
+    if (data.teacher.chats.length) data.teacher.activeId = data.teacher.chats[data.teacher.chats.length-1].id;
+    else { teacherNewChat(); return; }
+  }
+  teacherRender();
+}
+function teacherShow(view) { tcView = view; teacherRender(); }
+function teacherRender() {
+  if (!teacherHasKey()) return teacherRenderSetup();
+  if (tcView === 'history') return teacherRenderHistory();
+  if (tcView === 'methods') return teacherRenderMethods();
+  teacherRenderChat();
+}
+function teacherRenderSetup() {
+  const root = document.getElementById('teacherRoot');
+  root.innerHTML =
+    '<div class="tc-setup">' +
+      '<div class="tc-hero">' +
+        '<div class="tc-mark"><svg viewBox="0 0 24 24" fill="none"><path d="M12 3l9 4.5-9 4.5-9-4.5L12 3z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M7 10v4.2c0 1.4 2.5 2.8 5 2.8s5-1.4 5-2.8V10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div>' +
+        '<h2>מורה פרטי לפסיכומטרי</h2>' +
+        '<p>צלם שאלה או הקלד אותה, וקבל הכוונה שלב-אחר-שלב בשיטות הייחודיות של הפסיכומטרי.<br>כדי להתחיל, הדבק מפתח Gemini API (חינמי).</p>' +
+      '</div>' +
+      '<div class="field"><label>מפתח Gemini API</label><input type="password" id="tcSetupKey" placeholder="הדבק מפתח כאן" autocomplete="off"></div>' +
+      '<button class="btn" onclick="teacherSaveKeyFromSetup()">שמירה והתחלה</button>' +
+      '<p style="text-align:center;margin-top:14px;font-size:0.86em;color:var(--muted);">אין לך מפתח? קבל אחד בחינם ב-<a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener">Google AI Studio</a></p>' +
+    '</div>';
+}
+function teacherBubbleHtml(m) {
+  const cls = m.role === 'user' ? 'tc-user' : 'tc-model';
+  let inner = '';
+  const img = tcImg[m.id];
+  if (img) inner += '<img src="' + img.url + '" alt="">';
+  else if (m.hasImage) inner += '<div class="tc-li-sub" style="margin-bottom:6px;">📷 צורפה תמונה</div>';
+  inner += escapeHtml(m.text || '');
+  return '<div class="tc-bubble ' + cls + '">' + inner + '</div>';
+}
+function teacherRenderChat() {
+  const root = document.getElementById('teacherRoot');
+  const chat = teacherActiveChat();
+  let msgs = '';
+  if (!chat || chat.messages.length === 0) {
+    msgs = '<div class="tc-empty-chat"><div class="tc-mark"><svg viewBox="0 0 24 24" fill="none"><path d="M12 3l9 4.5-9 4.5-9-4.5L12 3z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M7 10v4.2c0 1.4 2.5 2.8 5 2.8s5-1.4 5-2.8V10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div style="font-weight:700;color:var(--text);font-size:1.05em;">איך אפשר לעזור?</div><div>צלם שאלה או הקלד אותה, ואלווה אותך צעד-צעד עד לפתרון.</div></div>';
+  } else {
+    chat.messages.forEach(m => { msgs += teacherBubbleHtml(m); });
+  }
+  if (tcBusy) msgs += '<div class="tc-typing"><span></span><span></span><span></span></div>';
+  else if (tcError) msgs += '<div class="tc-bubble tc-model tc-error">' + escapeHtml(tcError) + '<div><button class="tc-retry" onclick="teacherRetry()">נסה שוב</button></div></div>';
+  const prev = tcPending ? '<div class="tc-imgprev"><img src="' + tcPending.url + '" alt=""><button onclick="teacherClearPending()">✕</button></div>' : '';
+  root.innerHTML =
+    '<div class="tc-toolbar">' +
+      '<button class="tc-icon-btn" title="שיחה חדשה" onclick="teacherNewChat()"><svg viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>' +
+      '<div class="tc-title">מורה</div>' +
+      '<button class="tc-icon-btn" title="השיטות שלי" onclick="teacherShow(\'methods\')"><svg viewBox="0 0 24 24" fill="none"><path d="M6 4h9l4 4v12H6z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M9 10h7M9 14h7M9 17h4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></button>' +
+      '<button class="tc-icon-btn" title="היסטוריה" onclick="teacherShow(\'history\')"><svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8.5" stroke="currentColor" stroke-width="1.7"/><path d="M12 7.5V12l3 2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>' +
+    '</div>' +
+    '<div class="tc-msgs" id="tcMsgs">' + msgs + '</div>' +
+    '<div class="tc-modes">' +
+      '<button class="tc-mode" onclick="teacherMode(\'הסבר לי את השאלה\')">הסבר לי את השאלה</button>' +
+      '<button class="tc-mode" onclick="teacherMode(\'למד אותי את השיטה\')">למד אותי את השיטה</button>' +
+      '<button class="tc-mode" onclick="teacherMode(\'בדוק את הפתרון שלי\')">בדוק את הפתרון שלי</button>' +
+    '</div>' +
+    '<div class="tc-composer">' + prev +
+      '<div class="tc-inputrow">' +
+        '<button class="tc-cam" title="צילום / העלאת שאלה" onclick="document.getElementById(\'tcImgInput\').click()"><svg viewBox="0 0 24 24" fill="none"><rect x="3" y="7" width="18" height="13" rx="2.5" stroke="currentColor" stroke-width="1.7"/><circle cx="12" cy="13.5" r="3.3" stroke="currentColor" stroke-width="1.7"/><path d="M8 7l1.3-2.2h5.4L16 7" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg></button>' +
+        '<textarea id="tcInput" rows="1" placeholder="כתוב שאלה או הדבק טקסט..." oninput="teacherAutoGrow(this)"></textarea>' +
+        '<button class="tc-send" id="tcSend" onclick="teacherSend()"><svg viewBox="0 0 24 24" fill="none"><path d="M4 12l16-8-6 16-3-6-7-2z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg></button>' +
+      '</div>' +
+    '</div>';
+  teacherScrollBottom();
+}
+function teacherScrollBottom() {
+  const el = document.getElementById('tcMsgs');
+  if (el) requestAnimationFrame(() => { el.scrollTop = el.scrollHeight; });
+}
+function teacherAutoGrow(t) { t.style.height = 'auto'; t.style.height = Math.min(t.scrollHeight, 120) + 'px'; }
+function teacherMode(prefix) {
+  const t = document.getElementById('tcInput');
+  if (!t) return;
+  const cur = t.value.trim();
+  t.value = cur ? (prefix + ': ' + cur) : (prefix + ': ');
+  t.focus(); teacherAutoGrow(t);
+}
+function teacherPickImage(input) {
+  const file = input.files && input.files[0];
+  input.value = '';
+  if (!file) return;
+  if (!file.type.startsWith('image/')) { toast('אנא בחר תמונה'); return; }
+  if (file.size > 4*1024*1024) { toast('תמונה גדולה מדי (עד 4MB)'); return; }
+  const reader = new FileReader();
+  reader.onload = e => {
+    const url = e.target.result;
+    tcPending = { url: url, mime: file.type, data: url.slice(url.indexOf(',') + 1) };
+    if (tcView === 'chat') teacherRender();
+  };
+  reader.readAsDataURL(file);
+}
+function teacherClearPending() { tcPending = null; teacherRender(); }
+async function teacherSend() {
+  if (tcBusy) return;
+  const t = document.getElementById('tcInput');
+  const text = t ? t.value.trim() : '';
+  if (!text && !tcPending) { toast('כתוב שאלה או צרף תמונה'); return; }
+  let chat = teacherActiveChat();
+  if (!chat) { teacherNewChat(); chat = teacherActiveChat(); }
+  const id = tcNewId();
+  const um = { id: id, role: 'user', text: text, hasImage: !!tcPending };
+  if (tcPending) tcImg[id] = tcPending;
+  chat.messages.push(um);
+  if ((!chat.title || chat.title === 'שיחה חדשה') && text) chat.title = text.split(/\s+/).slice(0,7).join(' ');
+  tcPending = null; tcError = null;
+  if (t) t.value = '';
+  save();
+  tcBusy = true; teacherRender();
+  try {
+    const reply = await teacherCallApi(chat);
+    const res = teacherExtractMethod(reply);
+    chat.messages.push({ id: tcNewId(), role: 'model', text: res.clean });
+    if (res.method) teacherAddMethod(res.method);
+    tcBusy = false; save(); teacherRender();
+  } catch (err) {
+    tcBusy = false; tcError = teacherErrText(err); teacherRender();
+  }
+}
+async function teacherRetry() {
+  const chat = teacherActiveChat();
+  if (!chat || tcBusy) return;
+  tcError = null; tcBusy = true; teacherRender();
+  try {
+    const reply = await teacherCallApi(chat);
+    const res = teacherExtractMethod(reply);
+    chat.messages.push({ id: tcNewId(), role: 'model', text: res.clean });
+    if (res.method) teacherAddMethod(res.method);
+    tcBusy = false; save(); teacherRender();
+  } catch (err) {
+    tcBusy = false; tcError = teacherErrText(err); teacherRender();
+  }
+}
+async function teacherCallApi(chat) {
+  const key = teacherGetKey();
+  if (!key) { const e = new Error('nokey'); e.status = 401; throw e; }
+  const contents = chat.messages.map(m => {
+    const parts = [];
+    if (m.text) parts.push({ text: m.text });
+    const img = tcImg[m.id];
+    if (m.role === 'user' && img) parts.push({ inline_data: { mime_type: img.mime, data: img.data } });
+    if (parts.length === 0) parts.push({ text: '' });
+    return { role: m.role, parts: parts };
+  });
+  const body = { systemInstruction: { parts: [{ text: TEACHER_PROMPT }] }, contents: contents };
+  let res;
+  try {
+    res = await fetch(TEACHER_ENDPOINT + encodeURIComponent(key), {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+    });
+  } catch (e) { const err = new Error('network'); err.status = 0; throw err; }
+  if (!res.ok) { const err = new Error('http'); err.status = res.status; throw err; }
+  const json = await res.json();
+  const cand = json && json.candidates && json.candidates[0];
+  const parts = cand && cand.content && cand.content.parts;
+  const textOut = parts ? parts.map(p => p.text || '').join('').trim() : '';
+  if (!textOut) { const err = new Error('empty'); err.status = -1; throw err; }
+  return textOut;
+}
+function teacherErrText(err) {
+  const s = err && err.status;
+  if (s === 0) return 'אין חיבור לרשת. בדוק את האינטרנט ונסה שוב.';
+  if (s === 400 || s === 401 || s === 403) return 'נראה שמפתח ה-API שגוי או לא מורשה. בדוק אותו בהגדרות ונסה שוב.';
+  if (s === 429) return 'חרגת ממכסת השימוש (429). המתן דקה-שתיים ונסה שוב.';
+  if (s === -1) return 'לא התקבלה תשובה מהמודל (ייתכן שהתוכן נחסם). נסח מחדש ונסה שוב.';
+  return 'אירעה שגיאה' + (s ? ' (' + s + ')' : '') + '. נסה שוב.';
+}
+function teacherExtractMethod(text) {
+  const re = /^[ \t>*_-]*##METHOD##\s*(.+?)\s*\|\s*(.+?)\s*$/m;
+  const match = text.match(re);
+  if (!match) return { clean: text.trim(), method: null };
+  const clean = text.replace(match[0], '').replace(/\n{3,}/g, '\n\n').trim();
+  return { clean: clean, method: { name: match[1].trim(), summary: match[2].trim() } };
+}
+function teacherAddMethod(m) {
+  const item = data.teacher.methods.find(x => x.name === m.name);
+  if (item) { item.summary = m.summary; item.date = new Date().toISOString(); }
+  else data.teacher.methods.push({ id: tcNewId(), name: m.name, summary: m.summary, date: new Date().toISOString() });
+  save();
+}
+function teacherRenderHistory() {
+  const root = document.getElementById('teacherRoot');
+  const chats = [...data.teacher.chats].sort((a,b) => new Date(b.date) - new Date(a.date));
+  let list = '';
+  if (chats.length === 0) list = '<div class="tc-empty-chat" style="flex:0;padding:40px 20px;">אין עדיין שיחות שמורות</div>';
+  else chats.forEach(c => {
+    const d = new Date(c.date).toLocaleDateString('he-IL');
+    list += '<div class="tc-list-item">' +
+      '<div class="tc-li-body" onclick="teacherOpenChat(' + c.id + ')">' +
+        '<div class="tc-li-title">' + escapeHtml(c.title || 'שיחה') + '</div>' +
+        '<div class="tc-li-sub">' + d + ' · ' + c.messages.length + ' הודעות</div>' +
+      '</div>' +
+      '<button class="tc-li-del" onclick="teacherDeleteChat(' + c.id + ')"><svg viewBox="0 0 24 24" fill="none"><path d="M5 7h14M10 7V5h4v2M6 7l1 12h10l1-12" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>' +
+    '</div>';
+  });
+  root.innerHTML =
+    '<div class="tc-toolbar">' +
+      '<button class="tc-icon-btn" title="חזרה" onclick="teacherShow(\'chat\')"><svg viewBox="0 0 24 24" fill="none"><path d="M15 5l-7 7 7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>' +
+      '<div class="tc-title">היסטוריית שיחות</div>' +
+      '<button class="tc-icon-btn" title="שיחה חדשה" onclick="teacherNewChat()"><svg viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>' +
+    '</div>' +
+    '<div class="tc-list">' + list + '</div>';
+}
+function teacherOpenChat(id) { data.teacher.activeId = id; tcImg = {}; tcError = null; tcView = 'chat'; save(); teacherRender(); }
+function teacherDeleteChat(id) {
+  showConfirm('מחיקת שיחה', 'למחוק את השיחה הזו לצמיתות?', 'מחק', () => {
+    data.teacher.chats = data.teacher.chats.filter(c => c.id !== id);
+    if (data.teacher.activeId === id) data.teacher.activeId = data.teacher.chats.length ? data.teacher.chats[data.teacher.chats.length-1].id : null;
+    save(); teacherRenderHistory(); toast('השיחה נמחקה');
+  });
+}
+function teacherRenderMethods() {
+  const root = document.getElementById('teacherRoot');
+  const methods = [...data.teacher.methods].sort((a,b) => new Date(b.date) - new Date(a.date));
+  let list = '';
+  if (methods.length === 0) list = '<div class="tc-empty-chat" style="flex:0;padding:40px 20px;line-height:1.6;">עדיין לא נשמרו שיטות.<br>כשהמורה ילמד אותך שיטה, היא תישמר כאן אוטומטית — וזמינה גם בלי אינטרנט.</div>';
+  else methods.forEach(m => {
+    list += '<div class="tc-list-item">' +
+      '<div class="tc-method-badge"><svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.6"/><path d="M8.5 12l2.2 2.2 4.8-4.8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></div>' +
+      '<div class="tc-li-body">' +
+        '<div class="tc-li-title">' + escapeHtml(m.name) + '</div>' +
+        '<div class="tc-li-sub">' + escapeHtml(m.summary) + '</div>' +
+      '</div>' +
+      '<button class="tc-li-del" onclick="teacherDeleteMethod(' + m.id + ')"><svg viewBox="0 0 24 24" fill="none"><path d="M5 7h14M10 7V5h4v2M6 7l1 12h10l1-12" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>' +
+    '</div>';
+  });
+  root.innerHTML =
+    '<div class="tc-toolbar">' +
+      '<button class="tc-icon-btn" title="חזרה" onclick="teacherShow(\'chat\')"><svg viewBox="0 0 24 24" fill="none"><path d="M15 5l-7 7 7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>' +
+      '<div class="tc-title">השיטות שלי</div>' +
+    '</div>' +
+    '<div class="tc-list">' + list + '</div>';
+}
+function teacherDeleteMethod(id) {
+  showConfirm('מחיקת שיטה', 'למחוק את השיטה מהרשימה?', 'מחק', () => {
+    data.teacher.methods = data.teacher.methods.filter(m => m.id !== id);
+    save(); teacherRenderMethods(); toast('השיטה נמחקה');
+  });
+}
+
+load(); renderTopics(); renderPlan(); renderScores(); teacherRefreshKeyStatus();
 </script>
 </body>
 </html>
