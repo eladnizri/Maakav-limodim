@@ -241,7 +241,11 @@
   .tc-user { margin-left: auto; background: var(--primary); color: #fff; border-bottom-right-radius: 6px; }
   .tc-model { margin-right: auto; background: var(--card); color: var(--text); box-shadow: var(--shadow-sm); border-bottom-left-radius: 6px; }
   .tc-model.tc-error { background: var(--danger-soft); color: var(--danger); }
-  .tc-bubble img { max-width: 180px; max-height: 180px; border-radius: 10px; margin-bottom: 8px; display: block; }
+  .tc-bubble img { max-width: 180px; max-height: 180px; border-radius: 10px; margin-bottom: 8px; display: block; cursor: zoom-in; }
+  .tc-lightbox { display: none; position: fixed; inset: 0; z-index: 3000; background: rgba(0,0,0,0.92); align-items: center; justify-content: center; padding: 20px; }
+  .tc-lightbox.open { display: flex; }
+  .tc-lightbox img { max-width: 100%; max-height: 100%; border-radius: 8px; object-fit: contain; }
+  .tc-lightbox-close { position: absolute; top: calc(env(safe-area-inset-top, 0px) + 14px); left: 16px; width: 40px; height: 40px; border-radius: 50%; border: none; background: rgba(255,255,255,0.18); color: #fff; font-size: 1.2em; cursor: pointer; line-height: 1; }
   .tc-retry { margin-top: 9px; background: var(--danger); color: #fff; border: none; border-radius: 9px; padding: 7px 14px; font-family: inherit; font-size: 0.82em; font-weight: 700; cursor: pointer; }
   .tc-typing { margin-right: auto; background: var(--card); box-shadow: var(--shadow-sm); border-radius: 16px; border-bottom-left-radius: 6px; display: flex; gap: 5px; padding: 15px 16px; }
   .tc-typing span { width: 7px; height: 7px; border-radius: 50%; background: var(--faint); animation: tcBlink 1.2s infinite; }
@@ -507,6 +511,11 @@
       <button class="btn danger" id="confirmOk">אישור</button>
     </div>
   </div>
+</div>
+
+<div id="tcLightbox" class="tc-lightbox" onclick="teacherCloseImage()">
+  <button class="tc-lightbox-close" onclick="teacherCloseImage()" aria-label="סגור">✕</button>
+  <img id="tcLightboxImg" src="" alt="">
 </div>
 
 <div class="toast" id="toast"></div>
@@ -1268,6 +1277,11 @@ const TEACHER_PROMPT = `אתה מורה פרטי לבחינה הפסיכומטר
 - כתוב מתמטיקה בתווים רגילים בלבד: y² - 6y + 5 = 0 · √16 = 4 · 3/4 · 2×5 · 180° · ∠ABC · πr².
 - חזקות בתווים עיליים: ² ³ ⁴ ⁵. שורש: √. כפל: ×. חילוק: ÷ או /. אי-שוויונות: ≤ ≥ ≠ ±.
 - שבר פשוט: 3/4. שבר מורכב: (a+b)/(c+d).
+- אינדקסים בתווים תחתיים: x₁, x₂, aₙ. אל תכתוב x1 או x_1 — זה נקרא כמו המספר "אחד עשרה" ומבלבל.
+- כתוב כל ביטוי כמכלול שלם ולא כרצף ספרות מנותק: "2x + 3" ולא "2 x 3", "(x-1)(x+1)" ולא "x 1 x 1". ביטוי חייב להיראות כמו ביטוי מתמטי אמיתי שאפשר לקרוא חד-משמעית.
+
+## קריאת השאלה מתמונה — לפני הכל
+כשהשאלה מגיעה מתמונה, השורה הראשונה בתשובתך הפותחת תהיה ניסוח קצר של גרעין השאלה כפי שקראת אותה (למשל: "נתון |x|+2x = 5, מבוקש סכום הפתרונות"), כדי שאתפוס מיד אם קראת לא נכון. רק אחריה עבור למבנה הרגיל. זו השורה היחידה שמותר לך להוסיף מעבר למבנה.
 
 ## תוכן שאתה שולט בו
 כמותי:
@@ -1310,6 +1324,12 @@ const TEACHER_PROMPT = `אתה מורה פרטי לבחינה הפסיכומטר
 - כשאתה מציג את השיטה, אמור אם אפשר לקצר דרך התשובות ולא בפתרון ישיר.
 - בסיום, אל תסתפק בתשובה הנכונה — הסבר בשורה אחת למה המסיח המפתה ביותר שגוי, ואיזו טעות הוא נועד לתפוס.
 - אם בחרתי תשובה שגויה, זהה איזה מסיח בחרתי ומה הטעות שהוא מייצג.
+
+## דיוק — לפני שאתה נוקב בתשובה סופית
+- ודא שהתשובה הסופית היא אחת מארבע האפשרויות שניתנו. אם קיבלת תוצאה שאינה ברשימה — טעית איפשהו, חזור ובדוק, אל תעגל בכוח לאפשרות הקרובה.
+- הצב את התשובה בחזרה בשאלה וודא שהיא מקיימת אותה. אם לא — חשב מחדש לפני שאתה עונה.
+- בדוק שהתשובה עונה בדיוק על מה שנשאל (סכום הפתרונות? מספר הפתרונות? הפתרון עצמו? הערך של ביטוי?) — טעות נפוצה היא לפתור נכון אך לענות על השאלה הלא נכונה.
+- שים לב ליחידות ולסימנים: מטר מול ס"מ, אחוז מול מספר, חיובי מול שלילי.
 
 ## קריאת השאלה
 - לפני שאתה מזהה סוג שאלה, ודא שקראת נכון את הנתונים מהתמונה — מספרים, סימנים, ערך מוחלט, חזקות, ומה בדיוק נשאל.
@@ -1414,7 +1434,7 @@ function teacherBubbleHtml(m) {
   const cls = m.role === 'user' ? 'tc-user' : 'tc-model';
   let inner = '';
   const img = tcImg[m.id];
-  if (img) inner += '<img src="' + img.url + '" alt="">';
+  if (img) inner += '<img src="' + img.url + '" alt="" onclick="teacherOpenImage(this.src)">';
   else if (m.hasImage) inner += '<div class="tc-li-sub" style="margin-bottom:6px;">📷 צורפה תמונה</div>';
   inner += escapeHtml(m.text || '');
   return '<div class="tc-bubble ' + cls + '">' + inner + '</div>';
@@ -1452,6 +1472,17 @@ function teacherRenderChat() {
       '</div>' +
     '</div>';
   teacherScrollBottom();
+}
+function teacherOpenImage(src) {
+  if (!src) return;
+  const box = document.getElementById('tcLightbox');
+  const img = document.getElementById('tcLightboxImg');
+  if (img) img.src = src;
+  if (box) box.classList.add('open');
+}
+function teacherCloseImage() {
+  const box = document.getElementById('tcLightbox');
+  if (box) box.classList.remove('open');
 }
 function teacherScrollBottom() {
   const el = document.getElementById('tcMsgs');
@@ -1521,14 +1552,25 @@ async function teacherSend() {
   save();
   tcBusy = true; teacherRender();
   try {
+    const firstModelReply = !chat.messages.some(m => m.role === 'model');
     const reply = await teacherCallApi(chat);
     const res = teacherExtractMethod(reply);
     chat.messages.push({ id: tcNewId(), role: 'model', text: res.clean });
     if (res.method) teacherAddMethod(res.method);
+    if (firstModelReply) teacherTitleFromReply(chat, res.clean);
     tcBusy = false; save(); teacherRender();
   } catch (err) {
     tcBusy = false; tcError = teacherErrText(err); teacherRender();
   }
+}
+// The first line of the tutor's opening reply is the question type, which makes
+// a far more useful chat title than the first words the user typed.
+function teacherTitleFromReply(chat, reply) {
+  if (!reply) return;
+  let line = (reply.split('\n').find(l => l.trim()) || '').trim();
+  line = line.replace(/^[-•*\d.\s]+/, '').replace(/[.:]+$/, '').trim();
+  if (line.length > 45) line = line.slice(0, 45).trim() + '…';
+  if (line) chat.title = line;
 }
 async function teacherRetry() {
   const chat = teacherActiveChat();
@@ -1607,7 +1649,8 @@ async function teacherCallApi(chat) {
 }
 // Models habitually emit LaTeX/Markdown even when told not to, and the chat
 // renders plain text, so any that slips through is converted here.
-const TC_SUP = { '0':'⁰','1':'¹','2':'²','3':'³','4':'⁴','5':'⁵','6':'⁶','7':'⁷','8':'⁸','9':'⁹','-':'⁻','+':'⁺' };
+const TC_SUP = { '0':'⁰','1':'¹','2':'²','3':'³','4':'⁴','5':'⁵','6':'⁶','7':'⁷','8':'⁸','9':'⁹','-':'⁻','+':'⁺','n':'ⁿ' };
+const TC_SUB = { '0':'₀','1':'₁','2':'₂','3':'₃','4':'₄','5':'₅','6':'₆','7':'₇','8':'₈','9':'₉','-':'₋','+':'₊','n':'ₙ' };
 function teacherCleanMath(s) {
   if (!s) return s;
   let t = s;
@@ -1627,7 +1670,8 @@ function teacherCleanMath(s) {
   t = t.replace(/\\left|\\right/g, '');
   t = t.replace(/\\quad|\\qquad|\\,|\\;|\\!|\\:/g, ' ');
   t = t.replace(/\\\\/g, '\n');
-  t = t.replace(/\^\{?([-+]?\d+)\}?/g, (m, d) => d.split('').map(c => TC_SUP[c] || c).join(''));
+  t = t.replace(/\^\{?([-+]?[\dn]+)\}?/g, (m, d) => d.split('').map(c => TC_SUP[c] || c).join(''));
+  t = t.replace(/([A-Za-zא-ת])_\{?([-+]?[\dn]+)\}?/g, (m, base, d) => base + d.split('').map(c => TC_SUB[c] || c).join(''));
   t = t.replace(/_\{([^{}]*)\}/g, '$1');
   t = t.replace(/\*\*([\s\S]+?)\*\*/g, '$1');
   t = t.replace(/(^|[\s(])\*([^*\n]+?)\*(?=[\s).,:;!?]|$)/g, '$1$2');
