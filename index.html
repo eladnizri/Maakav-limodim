@@ -1299,20 +1299,31 @@ async function teacherProbeModels() {
 }
 const TEACHER_PROMPT = `אתה מורה פרטי לבחינה הפסיכומטרית הישראלית (מבחן PET), ואך ורק זה. אם נשאלת על נושא שאינו קשור לפסיכומטרי — סרב בקצרה והחזר את השיחה ללימוד.
 
-דרך העבודה שלך, בסדר הזה:
-1. זהה ואמור בקול את סוג השאלה המדויק (למשל: אנלוגיה מסוג יחס פעולה-כלי / בעיית תנועה / הסקה מתרשים / השלמת משפט).
-2. נקוב בשם השיטה הייחודית לפסיכומטרי שפותרת את סוג השאלה הזה, והסבר את ההיגיון שמאחוריה.
-3. הובל אותי לפתרון בשאלות מנחות, שלב אחרי שלב. עצור אחרי כל שלב וחכה לתשובה שלי.
-4. אל תיתן את התשובה הסופית לפני שניסיתי. אם טעיתי — הצבע על השלב המדויק שבו נשברה הלוגיקה, אל תפתור מחדש מההתחלה.
-5. בסיום, אמור מה הסימן המזהה שיאפשר לי לזהות שאלה כזו מיד בפעם הבאה, ואיזו טעות נפוצה אורבת בה.
+## חוק העל — התשובה הראשונה לכל שאלה חדשה
+ענה בדיוק במבנה הזה, ולא יותר:
+שורה 1: סוג השאלה המדויק.
+שורה 2: שם השיטה שפותרת אותה.
+שורות 3-4: רעיון השיטה במשפט או שניים.
+שורה אחרונה: "רוצה שנעמיק בשיטה ונפתור יחד?"
 
-כללים:
-- ענה בעברית. מונחים מתמטיים ומילים באנגלית נשארים במקור.
-- הצג חישובים בשורות נפרדות וקצרות, מותאם למסך טלפון.
-- הדגש קיצורי דרך וטריקים לחיסכון בזמן — זו בחינה מוגבלת בזמן.
-- אם קיבלת שאלה ללא כל ארבע האפשרויות, בקש אותן לפני שאתה פותר. אל תמציא אפשרויות.
-- בפרק המילולי בעברית: אם אינך בטוח, אמור זאת במפורש והצע לי להצליב מול פתרון הקורס. אל תציג ניחוש כוודאות.
-- אל תמציא שאלות פסיכומטריות חדשות אלא אם ביקשתי במפורש, ואז ציין שהן תרגול בלבד ולא בסגנון רשמי.
+ואז **עצור**. עד שאאשר — אסור לך לפתור, אסור לתת את התשובה הסופית, אסור לפרט שלבי פתרון, ואסור לחרוג מ-4 שורות הסבר. תשובה ארוכה היא כישלון.
+
+## אחרי שאישרתי שנעמיק
+- שלב אחד בכל הודעה, עד 4 שורות, וסיים בשאלה מנחה אחת. חכה לתשובה שלי לפני השלב הבא.
+- אל תיתן את התשובה הסופית לפני שניסיתי. אם טעיתי — הצבע על השלב המדויק שבו נשברה הלוגיקה, אל תפתור מחדש מההתחלה.
+- כשסיימנו, אמור בשורה אחת מה הסימן המזהה לשאלה כזו, ובשורה אחת מה הטעות הנפוצה בה.
+
+## קריאת השאלה
+- לפני שאתה מזהה סוג שאלה, ודא שקראת נכון את הנתונים מהתמונה — מספרים, סימנים, ערך מוחלט, חזקות, ומה בדיוק נשאל.
+- אם משהו בתמונה מטושטש, חתוך או לא חד־משמעי — אמור זאת ובקש הבהרה. אל תנחש ואל תמציא נתונים.
+- אם חסרות אפשרויות התשובה, בקש אותן לפני שאתה פותר.
+
+## סגנון
+- עברית. מונחים מתמטיים ומילים באנגלית נשארים במקור.
+- בלי כותרות מודגשות, בלי רשימות ארוכות, בלי מבוא ובלי סיכום. ישר לעניין.
+- חישובים בשורות קצרות ונפרדות, מותאם למסך טלפון.
+- בפרק המילולי: אם אינך בטוח, אמור זאת במפורש. אל תציג ניחוש כוודאות.
+- אל תמציא שאלות פסיכומטריות חדשות אלא אם ביקשתי במפורש.
 - כשלימדת שיטה, סיים את ההודעה בשורה נפרדת בפורמט: ##METHOD## שם השיטה | תקציר בשורה אחת.`;
 
 let tcView = 'chat';   // 'chat' | 'history' | 'methods'
@@ -1465,7 +1476,7 @@ function teacherPickImage(input) {
   const reader = new FileReader();
   reader.onload = e => {
     const url = e.target.result;
-    teacherCompressImage(url, 1280, 0.75).then(comp => {
+    teacherCompressImage(url, 1600, 0.88).then(comp => {
       tcPending = { url: comp.url, mime: comp.mime, data: comp.data };
       if (tcView === 'chat') teacherRender();
     }).catch(() => {
@@ -1546,13 +1557,37 @@ async function teacherCallApi(chat) {
     if (parts.length === 0) parts.push({ text: '' });
     return { role: m.role, parts: parts };
   });
-  const body = { systemInstruction: { parts: [{ text: TEACHER_PROMPT }] }, contents: contents };
-  let res;
-  try {
-    res = await fetch(teacherEndpoint() + encodeURIComponent(key), {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
-    });
-  } catch (e) { const err = new Error('network'); err.status = 0; throw err; }
+  // Thinking adds noticeable latency and the tutor answers are meant to be short,
+  // so it is disabled where the model allows it. Some models reject the field —
+  // the first rejection is remembered so later calls skip it in one round trip.
+  let dropThinking = localStorage.getItem('geminiNoThinkCfg') === '1';
+  const buildBody = drop => {
+    const gen = { temperature: 0.4, maxOutputTokens: drop ? 3000 : 1200 };
+    if (!drop) gen.thinkingConfig = { thinkingBudget: 0 };
+    return { systemInstruction: { parts: [{ text: TEACHER_PROMPT }] }, contents: contents, generationConfig: gen };
+  };
+  const post = async drop => {
+    try {
+      return await fetch(teacherEndpoint() + encodeURIComponent(key), {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(buildBody(drop))
+      });
+    } catch (e) { const err = new Error('network'); err.status = 0; throw err; }
+  };
+  let res = await post(dropThinking);
+  if (!res.ok) {
+    let detail = '';
+    try {
+      const j = await res.json();
+      detail = (j && j.error && (j.error.status ? j.error.status + ': ' : '') + (j.error.message || '')) || '';
+    } catch (e2) {}
+    if (res.status === 400 && !dropThinking && /thinking|unknown name|generationconfig/i.test(detail)) {
+      localStorage.setItem('geminiNoThinkCfg', '1');
+      dropThinking = true;
+      res = await post(true);
+    } else {
+      const err = new Error('http'); err.status = res.status; err.detail = detail; throw err;
+    }
+  }
   if (!res.ok) {
     const err = new Error('http'); err.status = res.status;
     try {
@@ -1565,7 +1600,11 @@ async function teacherCallApi(chat) {
   const cand = json && json.candidates && json.candidates[0];
   const parts = cand && cand.content && cand.content.parts;
   const textOut = parts ? parts.map(p => p.text || '').join('').trim() : '';
-  if (!textOut) { const err = new Error('empty'); err.status = -1; throw err; }
+  if (!textOut) {
+    const err = new Error('empty'); err.status = -1;
+    if (cand && cand.finishReason === 'MAX_TOKENS') err.status = -2;
+    throw err;
+  }
   return textOut;
 }
 function teacherErrText(err) {
@@ -1575,6 +1614,7 @@ function teacherErrText(err) {
   if (s === 400 || s === 401 || s === 403) return 'נראה שמפתח ה-API שגוי או לא מורשה. בדוק אותו בהגדרות ונסה שוב.' + d;
   if (s === 429) return 'חרגת ממכסת השימוש (429). המתן דקה-שתיים ונסה שוב.' + d;
   if (s === -1) return 'לא התקבלה תשובה מהמודל (ייתכן שהתוכן נחסם). נסח מחדש ונסה שוב.';
+  if (s === -2) return 'התשובה נקטעה באמצע. נסה לשאול שאלה ממוקדת יותר.';
   return 'אירעה שגיאה' + (s ? ' (' + s + ')' : '') + '. נסה שוב.' + d;
 }
 function teacherExtractMethod(text) {
