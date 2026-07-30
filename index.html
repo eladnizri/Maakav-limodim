@@ -319,21 +319,10 @@
 </div>
 <div class="content">
   <div id="tab-topics" class="tab-content active">
+    <div style="margin-bottom:14px;">
+      <button class="btn" onclick="switchTab('scores', document.querySelector('[data-tab=scores]')); openScoreForm();">הוספת ציון סימולציה</button>
+    </div>
     <div id="topicsList"></div>
-  </div>
-  <div id="tab-plan" class="tab-content">
-    <div class="stat-row">
-      <div class="stat"><div class="num" id="statDays">0</div><div class="lbl">ימים למבחן</div></div>
-      <div class="stat"><div class="num" id="statWeeks">0</div><div class="lbl">שבועות</div></div>
-    </div>
-    <div class="info-card">
-      <h3>התקדמות לפי נושא</h3>
-      <div id="planProgress"></div>
-    </div>
-    <div class="info-card">
-      <h3>סיכום</h3>
-      <div id="planSummary"></div>
-    </div>
   </div>
   <div id="tab-scores" class="tab-content">
     <div class="stat-row">
@@ -345,7 +334,6 @@
       <div class="stat"><div class="num" id="scoreLast">-</div><div class="lbl">ציון אחרון</div></div>
     </div>
     <div id="scoreChart" class="score-chart-wrap" style="display:none;"></div>
-    <button class="btn" onclick="openScoreForm()" style="margin-bottom:12px;">הוספת ציון סימולציה</button>
     <div id="scoreForm" class="info-card" style="display:none;">
       <div class="field">
         <label>תאריך הסימולציה</label>
@@ -484,10 +472,6 @@
   <button class="active" data-tab="topics" onclick="switchTab('topics', this)">
     <svg class="nav-icon" viewBox="0 0 24 24" fill="none"><path d="M9.5 6h11M9.5 12h11M9.5 18h11" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M3.5 6.3l1.3 1.3L7 5.3M3.5 12.3l1.3 1.3L7 11.3M3.5 18.3l1.3 1.3L7 17.3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
     <span>נושאים</span>
-  </button>
-  <button data-tab="plan" onclick="switchTab('plan', this)">
-    <svg class="nav-icon" viewBox="0 0 24 24" fill="none"><path d="M5 20V11M12 20V4M19 20v-7" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-    <span>תכנית</span>
   </button>
   <button data-tab="scores" onclick="switchTab('scores', this)">
     <svg class="nav-icon" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="4" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="1.3" fill="currentColor"/></svg>
@@ -678,41 +662,6 @@ function updateOverall() {
   if (ring) ring.style.strokeDashoffset = circumference - (pct/100)*circumference;
   document.getElementById('overallText').textContent = pct + '%';
 }
-function renderPlan() {
-  const exam = new Date(data.settings.examDate);
-  const today = new Date(); today.setHours(0,0,0,0);
-  const days = Math.max(0, Math.ceil((exam - today)/(1000*60*60*24)));
-  const weeks = Math.ceil(days/7);
-  document.getElementById('statDays').textContent = days;
-  document.getElementById('statWeeks').textContent = weeks;
-  let prog = '';
-  COURSE.forEach((t, ti) => {
-    const total = t.subs.length;
-    let done = 0;
-    t.subs.forEach((_, si) => { if (data.done[ti+'-'+si]) done++; });
-    const pct = total ? Math.round((done/total)*100) : 0;
-    prog += '<div style="margin-bottom:10px;">' +
-      '<div style="display:flex;justify-content:space-between;font-size:0.85em;margin-bottom:4px;">' +
-        '<span>' + t.name + '</span><span style="color:var(--muted)">' + done + '/' + total + '</span></div>' +
-      '<div class="topic-bar"><div class="topic-bar-fill" style="width:' + pct + '%"></div></div></div>';
-  });
-  document.getElementById('planProgress').innerHTML = prog;
-  let totalSubs = 0, doneSubs = 0;
-  COURSE.forEach((t, ti) => t.subs.forEach((_, si) => { totalSubs++; if (data.done[ti+'-'+si]) doneSubs++; }));
-  const remaining = totalSubs - doneSubs;
-  const perWeek = weeks > 0 ? (remaining/weeks).toFixed(1) : remaining;
-  let summary = '<div>סה"כ נושאי משנה: <b>' + totalSubs + '</b></div>' +
-    '<div>הושלמו: <b style="color:var(--success)">' + doneSubs + '</b></div>' +
-    '<div>נותרו: <b>' + remaining + '</b></div>';
-  if (weeks > 0 && remaining > 0) {
-    summary += '<div style="margin-top:8px;color:var(--muted);font-size:0.85em;">כדי לסיים בזמן: כ-<b>' + perWeek + '</b> נושאי משנה בשבוע</div>';
-  } else if (remaining === 0) {
-    summary += '<div style="margin-top:8px;color:var(--success);">&#127881; סיימת את כל החומר!</div>';
-  }
-  document.getElementById('planSummary').innerHTML = summary;
-  document.getElementById('examCountdown').textContent = days > 0 ? days : '0';
-  document.getElementById('examLabel').textContent = days > 0 ? 'ימים למבחן' : 'יום המבחן הגיע!';
-}
 function openScoreForm() {
   document.getElementById('newScoreDate').value = new Date().toISOString().split('T')[0];
   ['newScoreValue','newScoreVerbal','newScoreQuant','newScoreEnglish','newScoreNote'].forEach(id => {
@@ -877,7 +826,7 @@ function renderScoreChart() {
 }
 function saveSettings() {
   data.settings.examDate = document.getElementById('examDate').value;
-  save(); renderPlan(); toast('נשמר');
+  save(); toast('נשמר');
 }
 function exportData() {
   const str = JSON.stringify(data, null, 2);
@@ -949,7 +898,6 @@ function switchTab(name, btn) {
   document.getElementById('tab-'+name).classList.add('active');
   btn.classList.add('active');
   document.getElementById('mainHeader').style.display = (name === 'words' || name === 'teacher') ? 'none' : 'block';
-  if (name === 'plan') renderPlan();
   if (name === 'scores') renderScores();
   if (name === 'words') vcInit();
   if (name === 'teacher') teacherInit();
@@ -1769,7 +1717,7 @@ function teacherDeleteMethod(id) {
   });
 }
 
-load(); renderTopics(); renderPlan(); renderScores(); teacherRefreshKeyStatus();
+load(); renderTopics(); renderScores(); teacherRefreshKeyStatus();
 </script>
 </body>
 </html>
