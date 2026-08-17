@@ -412,6 +412,7 @@
   <div id="tab-sim" class="tab-content">
     <div id="simRoot"></div>
     <input type="file" id="simImportInput" accept="application/json,.json" style="display:none;" onchange="simImport(this)">
+    <input type="file" id="simPdfInput" accept="application/pdf,.pdf" style="display:none;" onchange="simImportPdf(this)">
   </div>
 
   <div id="tab-settings" class="tab-content">
@@ -1999,7 +2000,7 @@ function teacherDeleteMethod(id) {
 }
 
 /* ================= Simulations module ================= */
-const SIM = { view: 'home', mode: null, timerOn: false, run: null, result: null, timerId: null, remaining: 0 };
+const SIM = { view: 'home', mode: null, timerOn: false, run: null, result: null, timerId: null, remaining: 0, pdfBusy: false };
 const SIM_CH_SIZE = 20;       // questions per simulated chapter
 const SIM_SEC_MIN = 20 * 60;  // seconds per chapter when the timer is on
 
@@ -2029,6 +2030,10 @@ function simModeCard(mode, title, sub, enabled) {
 }
 function simRenderHome() {
   const root = document.getElementById('simRoot');
+  if (SIM.pdfBusy) {
+    root.innerHTML = '<div class="section-title">סימולציות מבחן</div><div class="sim-empty"><div class="tc-typing" style="justify-content:center;margin-bottom:14px;"><span></span><span></span><span></span></div>מנתח את קובץ ה-PDF ומחלץ שאלות...<br>זה עשוי לקחת עד דקה. אל תסגור את הדף.</div>';
+    return;
+  }
   const exams = simExams();
   const nQ = simPool('quant').length, nV = simPool('verbal').length;
   let html = '<div class="section-title">סימולציות מבחן</div>';
@@ -2044,11 +2049,13 @@ function simRenderHome() {
       '<div class="sim-exam-meta">' + ex.sections.length + ' פרקים · ' + simCountQ(ex) + ' שאלות' + (ex.writing ? ' · חיבור' : '') + '</div></div>' +
       '<button class="tc-li-del" onclick="simDeleteExam(\'' + ex.id + '\')"><svg viewBox="0 0 24 24" fill="none"><path d="M5 7h14M10 7V5h4v2M6 7l1 12h10l1-12" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div>';
   });
+  html += '<button class="btn" style="margin-top:12px;" onclick="document.getElementById(\'simPdfInput\').click()">📄 ייבוא מבחן מקובץ PDF (חכם)</button>';
+  html += '<div class="hint" style="margin-top:6px;line-height:1.5;">קורא קובץ PDF של מבחן דרך מפתח ה-Gemini שלך, מחלץ את השאלות והתשובות אוטומטית, ושומר במכשיר. שאלות עם תרשים מסומנות ל-בדיקה ידנית. מומלץ מודל 2.5 למבחנים גדולים.</div>';
   html += '<div class="sim-row" style="margin-top:12px;">' +
-    '<button class="btn outline" onclick="document.getElementById(\'simImportInput\').click()">ייבוא מבחנים</button>' +
+    '<button class="btn outline" onclick="document.getElementById(\'simImportInput\').click()">ייבוא JSON</button>' +
     '<button class="btn outline" onclick="simExport()">ייצוא</button></div>';
-  html += '<button class="btn" style="margin-top:10px;" onclick="simLoadSample()">טעינת מבחן דוגמה</button>';
-  html += '<div class="hint" style="margin-top:12px;line-height:1.6;">השאלות נשמרות במכשיר שלך בלבד ונכללות בגיבוי.<br>פורמט ייבוא (JSON): מערך <code>exams</code>, כל מבחן עם <code>name</code>, <code>sections</code> (כל פרק: <code>type</code> = quant/verbal ו-<code>questions</code>), וכל שאלה עם <code>text</code>, <code>options</code> (4), <code>correct</code> (אינדקס 0-3), ו-<code>image</code> אופציונלי.</div>';
+  html += '<button class="btn outline" style="margin-top:10px;" onclick="simLoadSample()">טעינת מבחן דוגמה</button>';
+  html += '<div class="hint" style="margin-top:12px;line-height:1.6;">השאלות נשמרות במכשיר שלך בלבד ונכללות בגיבוי — אינן נשלחות לאתר הציבורי.</div>';
   root.innerHTML = html;
 }
 function simSetup(mode) { SIM.mode = mode; SIM.view = 'setup'; simRender(); }
@@ -2234,14 +2241,72 @@ function simDeleteExam(id) {
 }
 function simNormalizeExam(ex) {
   if (!ex || !Array.isArray(ex.sections)) return null;
-  const sections = ex.sections.map(s => ({
-    type: s.type === 'verbal' ? 'verbal' : 'quant',
-    name: s.name || simTypeName(s.type === 'verbal' ? 'verbal' : 'quant'),
-    questions: (s.questions || []).filter(q => q && q.text && Array.isArray(q.options) && q.options.length >= 2 && Number.isInteger(q.correct) && q.correct >= 0 && q.correct < q.options.length)
-      .map(q => ({ text: String(q.text), image: q.image || null, options: q.options.map(String), correct: q.correct }))
-  })).filter(s => s.questions.length);
+  const sections = ex.sections.map(s => {
+    const type = (s.type === 'verbal' || s.type === 'quant') ? s.type : null;
+    if (!type) return null; // drop English or unknown sections
+    return {
+      type: type,
+      name: s.name || simTypeName(type),
+      questions: (s.questions || []).filter(q => q && q.text && Array.isArray(q.options) && q.options.length >= 2 && Number.isInteger(q.correct) && q.correct >= 0 && q.correct < q.options.length)
+        .map(q => ({ text: String(q.text), image: q.image || null, options: q.options.map(String), correct: q.correct }))
+    };
+  }).filter(s => s && s.questions.length);
   if (!sections.length) return null;
   return { id: ex.id || ('exam_' + Date.now() + '_' + Math.floor(Math.random() * 1000)), name: ex.name || 'מבחן', sections: sections, writing: ex.writing || '' };
+}
+// Smart PDF import: the user's own Gemini key reads the exam PDF and returns the
+// questions + correct answers (from the answer key) as JSON. Runs on-device; the
+// copyrighted PDF is never bundled into the app or sent anywhere but Gemini.
+const SIM_PDF_PROMPT = 'אתה ממיר מבחן פסיכומטרי מקובץ PDF למבנה JSON לתרגול. חלץ אך ורק את פרקי החשיבה המילולית והחשיבה הכמותית. דלג לחלוטין על פרקי אנגלית.\n' +
+  'החזר JSON יחיד במבנה: {"name":"שם המבחן","writing":"נושא מטלת הכתיבה אם קיים אחרת מחרוזת ריקה","sections":[{"type":"verbal או quant","name":"שם הפרק","questions":[{"text":"נוסח השאלה המלא כולל קטע הקריאה אם רלוונטי","options":["תשובה 1","תשובה 2","תשובה 3","תשובה 4"],"correct":0}]}]}\n' +
+  'כללים:\n' +
+  '- options: בדיוק ארבע התשובות המוצעות לפי הסדר, כטקסט מלא ובלי המספור.\n' +
+  '- correct: קח את התשובה הנכונה מתוך "מפתח תשובות נכונות" שבסוף הקובץ. המפתח הוא 1-based — החסר 1 כדי לקבל אינדקס 0 עד 3.\n' +
+  '- כלול את כל השאלות בכל פרק לפי סדר מספרן.\n' +
+  '- שאלה שמסתמכת על תרשים או ציור שאינך יכול לייצג בטקסט — הוסף בתחילת ה-text את הסימון "[כולל תרשים] " וכלול את שאר הנוסח והתשובות כרגיל.\n' +
+  '- אל תמציא שאלות ואל תשנה ניסוח. אם פרק חסר במפתח התשובות, השמט אותו.';
+function simImportPdf(input) {
+  const f = input.files && input.files[0]; input.value = '';
+  if (!f) return;
+  if (f.type !== 'application/pdf' && !/\.pdf$/i.test(f.name)) { toast('בחר קובץ PDF'); return; }
+  if (!teacherHasKey()) { toast('כדי לקרוא PDF צריך מפתח Gemini בהגדרות'); switchTab('settings', document.querySelector('.nav button[data-tab="settings"]')); return; }
+  if (f.size > 18 * 1024 * 1024) { toast('הקובץ גדול מדי (עד 18MB)'); return; }
+  const rd = new FileReader();
+  rd.onload = e => { const url = e.target.result; simExtractPdf(url.slice(url.indexOf(',') + 1), f.name.replace(/\.pdf$/i, '')); };
+  rd.readAsDataURL(f);
+}
+async function simExtractPdf(b64, name) {
+  SIM.pdfBusy = true; SIM.view = 'home'; simRender();
+  try {
+    const key = teacherGetKey();
+    const body = {
+      contents: [{ role: 'user', parts: [{ text: SIM_PDF_PROMPT }, { inline_data: { mime_type: 'application/pdf', data: b64 } }] }],
+      generationConfig: { temperature: 0, maxOutputTokens: 60000, responseMimeType: 'application/json' }
+    };
+    let res;
+    try {
+      res = await fetch(teacherEndpoint() + encodeURIComponent(key), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    } catch (e) { const err = new Error('net'); err.status = 0; throw err; }
+    if (!res.ok) { const err = new Error('http'); err.status = res.status; err.detail = await teacherHttpDetail(res); throw err; }
+    const json = await res.json();
+    const cand = json && json.candidates && json.candidates[0];
+    const txt = cand && cand.content && cand.content.parts ? cand.content.parts.map(p => p.text || '').join('') : '';
+    if (!txt) { const err = new Error('empty'); err.status = (cand && cand.finishReason === 'MAX_TOKENS') ? -2 : -1; throw err; }
+    let parsed;
+    try { parsed = JSON.parse(txt); } catch (e) { const err = new Error('parse'); err.status = -3; throw err; }
+    const exam = Array.isArray(parsed) ? parsed[0] : (parsed.exams ? parsed.exams[0] : parsed);
+    if (exam && !exam.name) exam.name = name || 'מבחן מיובא';
+    const added = simImportExams([exam]);
+    SIM.pdfBusy = false; simRender();
+    toast(added ? 'המבחן יובא בהצלחה — בדוק שאלות עם תרשים' : 'לא זוהו שאלות תקינות בקובץ');
+  } catch (err) {
+    SIM.pdfBusy = false; simRender();
+    let m;
+    if (err.status === -2) m = 'הקובץ גדול מדי לחילוץ בפעם אחת. בחר מודל 2.5 בהגדרות, או פצל את ה-PDF.';
+    else if (err.status === -3) m = 'החילוץ לא החזיר JSON תקין. נסה שוב, או בחר מודל 2.5 בהגדרות.';
+    else m = teacherErrText(err);
+    toast(m);
+  }
 }
 function simImportExams(arr) {
   let added = 0;
