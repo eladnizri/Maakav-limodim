@@ -322,6 +322,11 @@
   .sim-timer.low { color: var(--danger); }
   .sim-secbadge { font-size: 0.82em; font-weight: 700; color: var(--accent-dark); margin-bottom: 8px; }
   .sim-qcard { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 16px; box-shadow: var(--shadow-sm); }
+  /* printed-question cards go edge to edge so the scan is as large as possible */
+  .sim-qcard.region { padding: 8px; margin: 0 -14px; border-radius: 12px; }
+  .sim-qcard.region .sim-qimg { width: 100%; max-width: none; margin-bottom: 8px; }
+  .sim-qcard.region .sim-opts { padding: 0 6px; }
+  .sim-zoomhint { text-align: center; font-size: 0.76em; color: var(--muted); margin: -2px 0 8px; }
   .sim-qtext { font-size: 1.02em; line-height: 1.6; color: var(--text); white-space: pre-wrap; margin-bottom: 12px; }
   .sim-qimg { max-width: 100%; border-radius: 10px; margin-bottom: 12px; display: block; cursor: zoom-in; }
   .sim-opts { display: flex; flex-direction: column; gap: 8px; }
@@ -340,6 +345,17 @@
   .sim-res-sec { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; }
   .sim-res-sec .topic-bar { flex: 1; margin: 0 12px; }
   .sim-empty { text-align: center; padding: 40px 20px; color: var(--muted); line-height: 1.6; }
+  /* ---- Study quick menu ---- */
+  .study-sheet { display: none; position: fixed; inset: 0; z-index: 2500; background: rgba(0,0,0,0.35); align-items: flex-end; }
+  .study-sheet.open { display: flex; }
+  .study-card { width: 100%; background: var(--card); border-radius: 22px 22px 0 0; padding: 10px 16px calc(env(safe-area-inset-bottom, 0px) + 84px); box-shadow: 0 -8px 30px rgba(0,0,0,0.18); animation: sheetUp 0.22s ease; }
+  @keyframes sheetUp { from { transform: translateY(30px); opacity: 0.6; } to { transform: translateY(0); opacity: 1; } }
+  .study-grip { width: 40px; height: 4px; border-radius: 4px; background: var(--faint); margin: 4px auto 12px; }
+  .study-title { font-weight: 800; color: var(--text); font-size: 1.05em; margin: 0 4px 10px; }
+  .study-item { display: flex; align-items: center; gap: 12px; width: 100%; text-align: right; border: none; background: var(--inset); border-radius: 14px; padding: 14px; margin-bottom: 8px; cursor: pointer; font-family: inherit; }
+  .study-item svg { width: 24px; height: 24px; color: var(--primary); flex-shrink: 0; }
+  .study-item-t { font-weight: 700; color: var(--text); font-size: 1em; }
+  .study-item-s { font-size: 0.82em; color: var(--muted); margin-top: 2px; }
 </style>
 </head>
 <body>
@@ -410,6 +426,7 @@
       </div>
     </div>
     <div id="scoresList"></div>
+    <div id="practiceInsights"></div>
   </div>
 
   <div id="tab-sim" class="tab-content">
@@ -521,17 +538,9 @@
     <svg class="nav-icon" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="4" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="1.3" fill="currentColor"/></svg>
     <span>ציונים</span>
   </button>
-  <button data-tab="sim" onclick="switchTab('sim', this)">
-    <svg class="nav-icon" viewBox="0 0 24 24" fill="none"><path d="M8 4h8a1 1 0 011 1v14a1 1 0 01-1 1H8a1 1 0 01-1-1V5a1 1 0 011-1z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M10 9h4M10 12.5h4M10 16h2.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
-    <span>סימולציות</span>
-  </button>
-  <button data-tab="words" onclick="switchTab('words', this)">
-    <svg class="nav-icon" viewBox="0 0 24 24" fill="none"><path d="M4 5.5A1.5 1.5 0 015.5 4H11v15.5H5.5A1.5 1.5 0 014 18V5.5zM20 5.5A1.5 1.5 0 0018.5 4H13v15.5h5.5A1.5 1.5 0 0020 18V5.5z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>
-    <span>מילים</span>
-  </button>
-  <button data-tab="teacher" onclick="switchTab('teacher', this)">
+  <button data-tab="study" onclick="studyMenu()">
     <svg class="nav-icon" viewBox="0 0 24 24" fill="none"><path d="M12 3l9 4.5-9 4.5-9-4.5L12 3z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M7 10v4.2c0 1.4 2.5 2.8 5 2.8s5-1.4 5-2.8V10" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M21 7.5V13" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
-    <span>מורה</span>
+    <span>לימוד</span>
   </button>
   <button data-tab="settings" onclick="switchTab('settings', this)">
     <svg class="nav-icon" viewBox="0 0 24 24" fill="none"><path d="M4 6h11M4 12h6M4 18h12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="17" cy="6" r="2" fill="currentColor"/><circle cx="13" cy="18" r="2" fill="currentColor"/></svg>
@@ -554,6 +563,25 @@
       <button class="btn ghost" id="confirmCancel" onclick="hideConfirm()">ביטול</button>
       <button class="btn danger" id="confirmOk">אישור</button>
     </div>
+  </div>
+</div>
+
+<div id="studySheet" class="study-sheet" onclick="studyClose(event)">
+  <div class="study-card" onclick="event.stopPropagation()">
+    <div class="study-grip"></div>
+    <div class="study-title">לימוד</div>
+    <button class="study-item" onclick="studyGo('teacher')">
+      <svg viewBox="0 0 24 24" fill="none"><path d="M12 3l9 4.5-9 4.5-9-4.5L12 3z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M7 10v4.2c0 1.4 2.5 2.8 5 2.8s5-1.4 5-2.8V10" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <div><div class="study-item-t">מורה</div><div class="study-item-s">שאל שאלות, קבל שיטות והסברים</div></div>
+    </button>
+    <button class="study-item" onclick="studyGo('words')">
+      <svg viewBox="0 0 24 24" fill="none"><path d="M4 5.5A1.5 1.5 0 015.5 4H11v15.5H5.5A1.5 1.5 0 014 18V5.5zM20 5.5A1.5 1.5 0 0018.5 4H13v15.5h5.5A1.5 1.5 0 0020 18V5.5z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>
+      <div><div class="study-item-t">לימוד מילים</div><div class="study-item-s">כרטיסיות וחידון אוצר מילים</div></div>
+    </button>
+    <button class="study-item" onclick="studyGo('sim')">
+      <svg viewBox="0 0 24 24" fill="none"><path d="M8 4h8a1 1 0 011 1v14a1 1 0 01-1 1H8a1 1 0 01-1-1V5a1 1 0 011-1z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M10 9h4M10 12.5h4M10 16h2.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+      <div><div class="study-item-t">מבחנים וסימולציות</div><div class="study-item-s">מבחן מלא או תרגול ממוקד</div></div>
+    </button>
   </div>
 </div>
 
@@ -581,6 +609,7 @@ let data = {
   vocab: { he: {}, en: {} },
   teacher: { chats: [], methods: [], activeId: null, mistakes: [], stats: { topics: {} } },
   sims: { exams: [] },
+  practice: [],
   settings: { examDate: '2026-12-04' }
 };
 let uiNotesOpen = {};
@@ -599,6 +628,7 @@ function load() {
   if (!data.teacher.stats.topics) data.teacher.stats.topics = {};
   if (!data.sims || typeof data.sims !== 'object') data.sims = { exams: [] };
   if (!Array.isArray(data.sims.exams)) data.sims.exams = [];
+  if (!Array.isArray(data.practice)) data.practice = [];
   document.getElementById('examDate').value = data.settings.examDate;
 }
 function save() { localStorage.setItem('psychoTracker', JSON.stringify(data)); }
@@ -787,9 +817,48 @@ function deleteScore(id) {
     toast('הציון נמחק');
   });
 }
+// Practice chapters are tracked apart from full simulations: accuracy per section
+// type over time, with a short read on the trend. Never mixed into the weighted average.
+function renderPracticeInsights() {
+  const el = document.getElementById('practiceInsights');
+  if (!el) return;
+  const runs = data.practice || [];
+  if (!runs.length) { el.innerHTML = '<div class="section-title" style="margin-top:22px;">תובנות תרגול</div><div class="info-card hint" style="text-align:center;padding:26px 20px;">עדיין לא ביצעת תרגולים.<br>תרגול פרק בודד יופיע כאן עם מגמת הדיוק שלך.</div>'; return; }
+  let html = '<div class="section-title" style="margin-top:22px;">תובנות תרגול</div>';
+  ['quant', 'verbal'].forEach(type => {
+    const rs = runs.filter(r => r.type === type);
+    if (!rs.length) return;
+    const label = simTypeName(type);
+    const tot = rs.reduce((a, r) => a + r.total, 0), cor = rs.reduce((a, r) => a + r.correct, 0);
+    const avg = Math.round(cor / tot * 100);
+    const last = rs.slice(-5).map(r => Math.round(r.correct / r.total * 100));
+    let trend = '';
+    if (rs.length >= 3) {
+      const half = Math.floor(rs.length / 2);
+      const mean = a => a.reduce((x, r) => x + r.correct / r.total, 0) / a.length * 100;
+      const d = Math.round(mean(rs.slice(half)) - mean(rs.slice(0, half)));
+      trend = d >= 4 ? '<span style="color:var(--success);font-weight:700;">↑ משתפר ב-' + d + ' נק\'</span>'
+        : d <= -4 ? '<span style="color:var(--danger);font-weight:700;">↓ ירידה של ' + Math.abs(d) + ' נק\'</span>'
+        : '<span style="color:var(--muted);">יציב</span>';
+    }
+    const spark = last.map(p => '<div style="flex:1;display:flex;align-items:flex-end;height:44px;"><div style="width:100%;border-radius:4px 4px 0 0;background:' + (p >= 70 ? 'var(--success)' : p >= 50 ? 'var(--accent)' : 'var(--danger)') + ';height:' + Math.max(8, p) + '%;"></div></div>').join('');
+    html += '<div class="info-card" style="margin-bottom:10px;">' +
+      '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;">' +
+        '<h3 style="margin:0;">' + label + '</h3><div style="font-size:0.85em;">' + trend + '</div></div>' +
+      '<div style="display:flex;gap:5px;margin-bottom:10px;">' + spark + '</div>' +
+      '<div style="display:flex;justify-content:space-between;font-size:0.86em;color:var(--muted);">' +
+        '<span>ממוצע דיוק: <b style="color:var(--text)">' + avg + '%</b></span>' +
+        '<span>' + rs.length + ' תרגולים · ' + tot + ' שאלות</span></div>' +
+    '</div>';
+  });
+  const weakest = ['quant', 'verbal'].map(t => { const rs = runs.filter(r => r.type === t); if (!rs.length) return null; const tot = rs.reduce((a, r) => a + r.total, 0), cor = rs.reduce((a, r) => a + r.correct, 0); return { t: t, pct: cor / tot * 100 }; }).filter(Boolean).sort((a, b) => a.pct - b.pct)[0];
+  if (weakest && runs.length >= 2) html += '<div class="hint" style="line-height:1.6;">הפרק שדורש יותר תרגול: <b>' + simTypeName(weakest.t) + '</b> (' + Math.round(weakest.pct) + '% דיוק).</div>';
+  el.innerHTML = html;
+}
 function renderScores() {
   const scores = data.scores || [];
   renderScoreChart();
+  renderPracticeInsights();
   if (scores.length === 0) {
     document.getElementById('scoreAvg').textContent = '-';
     document.getElementById('scoreMax').textContent = '-';
@@ -957,17 +1026,26 @@ function hideConfirm() {
   document.getElementById('confirmModal').classList.remove('open');
   _confirmCb = null;
 }
+// teacher, words and simulations live behind the "לימוד" nav button
+const STUDY_TABS = ['teacher', 'words', 'sim'];
 function switchTab(name, btn) {
   document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
   document.querySelectorAll('.nav button').forEach(b => b.classList.remove('active'));
   document.getElementById('tab-'+name).classList.add('active');
-  btn.classList.add('active');
+  const navBtn = btn || document.querySelector('.nav button[data-tab="' + (STUDY_TABS.indexOf(name) >= 0 ? 'study' : name) + '"]');
+  if (navBtn) navBtn.classList.add('active');
   document.getElementById('mainHeader').style.display = (name === 'words' || name === 'teacher') ? 'none' : 'block';
   if (name === 'scores') renderScores();
   if (name === 'sim') simInit();
   if (name === 'words') vcInit();
   if (name === 'teacher') teacherInit();
   if (name === 'settings') teacherRefreshKeyStatus();
+}
+function studyMenu() { document.getElementById('studySheet').classList.add('open'); }
+function studyClose(e) { if (!e || e.target.id === 'studySheet') document.getElementById('studySheet').classList.remove('open'); }
+function studyGo(name) {
+  document.getElementById('studySheet').classList.remove('open');
+  switchTab(name, document.querySelector('.nav button[data-tab="study"]'));
 }
 
 /* ================= Vocabulary module ================= */
@@ -2003,7 +2081,7 @@ function teacherDeleteMethod(id) {
 }
 
 /* ================= Simulations module ================= */
-const SIM = { view: 'home', mode: null, timerOn: false, run: null, result: null, timerId: null, remaining: 0, pdfBusy: false, pdfMsg: '' };
+const SIM = { view: 'home', mode: null, timerOn: false, run: null, result: null, timerId: null, remaining: 0, pdfBusy: false, pdfMsg: '', pCount: 10 };
 const SIM_CH_SIZE = 20;       // questions per simulated chapter
 const SIM_SEC_MIN = 20 * 60;  // seconds per chapter when the timer is on
 
@@ -2017,7 +2095,7 @@ function simPool(type) {
   return out;
 }
 function simShuffle(a) { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
-function simCloneQ(q) { return { text: q.text, image: q.image || null, region: q.region || null, examId: q.examId || null, options: q.options.slice(), correct: q.correct, chosen: null }; }
+function simCloneQ(q) { return { text: q.text, image: q.image || null, region: q.region || null, shared: q.shared || null, examId: q.examId || null, options: q.options.slice(), correct: q.correct, chosen: null }; }
 
 function simRender() {
   const root = document.getElementById('simRoot');
@@ -2039,12 +2117,11 @@ function simRenderHome() {
   }
   const exams = simExams();
   const nQ = simPool('quant').length, nV = simPool('verbal').length;
-  let html = '<div class="section-title">סימולציות מבחן</div>';
+  let html = '<div class="section-title">מבחנים וסימולציות</div>';
   if (!exams.length) html += '<div class="sim-empty">אין עדיין מבחנים במכשיר.<br>ייבא קובץ PDF של מבחן כדי להתחיל.</div>';
   html += '<div class="sim-modes">';
-  html += simModeCard('full', 'מבחן מלא', 'מבחן שלם אחד — פרקי כמותי ומילולי לפי הסדר.', exams.length > 0);
-  html += simModeCard('mixed', 'מבחן מסומלץ', 'ערבוב שאלות מכל המבחנים: 2 פרקי כמותי + 2 פרקי מילולי.', nQ > 0 && nV > 0);
-  html += simModeCard('single', 'פרק בודד', 'פרק כמותי או מילולי אחד לתרגול מהיר.', nQ > 0 || nV > 0);
+  html += simModeCard('full', 'מבחן מלא', 'מבחן שלם — פרקי כמותי ומילולי. אמת או מעורבב.', exams.length > 0);
+  html += simModeCard('practice', 'תרגול', 'בחר כמות שאלות וסוג פרק לתרגול ממוקד.', nQ > 0 || nV > 0);
   html += '</div>';
   html += '<div class="sim-section-title">מאגר המבחנים</div>';
   exams.forEach(ex => {
@@ -2060,27 +2137,35 @@ function simRenderHome() {
 }
 function simSetup(mode) { SIM.mode = mode; SIM.view = 'setup'; simRender(); }
 function simToggleTimer(el) { SIM.timerOn = !!el.checked; }
+function simSetCount(n) { SIM.pCount = n; simRender(); }
 function simRenderSetup() {
   const root = document.getElementById('simRoot');
-  const titles = { full: 'מבחן מלא', mixed: 'מבחן מסומלץ', single: 'פרק בודד' };
+  const titles = { full: 'מבחן מלא', practice: 'תרגול' };
   let html = '<button class="btn danger-text" onclick="simInit()">→ חזרה</button>';
   html += '<div class="section-title" style="margin-top:10px;">' + titles[SIM.mode] + '</div>';
   html += '<div class="sim-toggle"><span>טיימר (כ-20 דק\' לפרק)</span><label class="sim-switch"><input type="checkbox" ' + (SIM.timerOn ? 'checked' : '') + ' onchange="simToggleTimer(this)"><span class="sim-slider"></span></label></div>';
   if (SIM.mode === 'full') {
-    html += '<div class="sim-section-title">בחר מבחן להתחלה</div>';
+    const nQ = simPool('quant').length, nV = simPool('verbal').length;
+    html += '<div class="sim-section-title">מבחן אמת</div>';
     simExams().forEach(ex => {
       html += '<button class="sim-mode" onclick="simStartFull(\'' + ex.id + '\')"><div class="sim-mode-title">' + escapeHtml(ex.name) + '</div>' +
         '<div class="sim-mode-sub">' + ex.sections.length + ' פרקים · ' + simCountQ(ex) + ' שאלות' + (ex.writing ? ' · כולל חיבור' : '') + '</div></button>';
     });
-  } else if (SIM.mode === 'single') {
-    const nQ = simPool('quant').length, nV = simPool('verbal').length;
-    html += '<div class="sim-section-title">בחר פרק</div>';
-    if (nQ) html += '<button class="sim-mode" onclick="simStartSingle(\'quant\')"><div class="sim-mode-title">כמותי</div><div class="sim-mode-sub">עד ' + SIM_CH_SIZE + ' שאלות מתוך ' + nQ + '</div></button>';
-    if (nV) html += '<button class="sim-mode" onclick="simStartSingle(\'verbal\')"><div class="sim-mode-title">מילולי</div><div class="sim-mode-sub">עד ' + SIM_CH_SIZE + ' שאלות מתוך ' + nV + '</div></button>';
+    html += '<div class="sim-section-title">מעורבב</div>';
+    html += '<button class="sim-mode" ' + (nQ && nV ? 'onclick="simStartMixed()"' : 'disabled') + '>' +
+      '<div class="sim-mode-title">מבחן מעורבב</div>' +
+      '<div class="sim-mode-sub">2 פרקי כמותי + 2 פרקי מילולי, מערבוב כל המבחנים (' + nQ + ' כמותי · ' + nV + ' מילולי).</div></button>';
   } else {
     const nQ = simPool('quant').length, nV = simPool('verbal').length;
-    html += '<div class="hint" style="line-height:1.6;margin-bottom:14px;">ייבנה מבחן מעורבב: 2 פרקי כמותי ו-2 פרקי מילולי, מתוך ' + nQ + ' שאלות כמותי ו-' + nV + ' שאלות מילולי בכל המבחנים.</div>';
-    html += '<button class="btn" onclick="simStartMixed()">התחל מבחן מסומלץ</button>';
+    const counts = [5, 10, 20, 30];
+    html += '<div class="sim-section-title">כמות שאלות</div><div class="vc-seg accent" style="margin-bottom:4px;">';
+    counts.forEach(n => { html += '<button class="' + (SIM.pCount === n ? 'active' : '') + '" onclick="simSetCount(' + n + ')">' + n + '</button>'; });
+    html += '</div>';
+    html += '<div class="sim-section-title">סוג הפרק</div>';
+    html += '<button class="sim-mode" ' + (nQ ? 'onclick="simStartPractice(\'quant\')"' : 'disabled') + '><div class="sim-mode-title">כמותי</div>' +
+      '<div class="sim-mode-sub">' + Math.min(SIM.pCount, nQ) + ' שאלות מתוך ' + nQ + ' במאגר</div></button>';
+    html += '<button class="sim-mode" ' + (nV ? 'onclick="simStartPractice(\'verbal\')"' : 'disabled') + '><div class="sim-mode-title">מילולי</div>' +
+      '<div class="sim-mode-sub">' + Math.min(SIM.pCount, nV) + ' שאלות מתוך ' + nV + ' במאגר</div></button>';
   }
   root.innerHTML = html;
 }
@@ -2104,9 +2189,9 @@ function simStartMixed() {
   for (let c = 0; c < 2; c++) { const chunk = v.slice(c * SIM_CH_SIZE, (c + 1) * SIM_CH_SIZE); if (chunk.length) sections.push({ type: 'verbal', name: 'מילולי ' + (c + 1), questions: chunk }); }
   simBegin({ title: 'מבחן מסומלץ', writing: '', writingText: '', sections: sections });
 }
-function simStartSingle(type) {
-  const pool = simShuffle(simPool(type)).slice(0, SIM_CH_SIZE).map(simCloneQ);
-  simBegin({ title: simTypeName(type) + ' — תרגול', writing: '', writingText: '', sections: [{ type: type, name: simTypeName(type), questions: pool }] });
+function simStartPractice(type) {
+  const pool = simShuffle(simPool(type)).slice(0, SIM.pCount).map(simCloneQ);
+  simBegin({ title: 'תרגול ' + simTypeName(type), practice: true, writing: '', writingText: '', sections: [{ type: type, name: simTypeName(type), questions: pool }] });
 }
 function simCurSec() { return SIM.run.sections[SIM.run.secIdx]; }
 function simCurQ() { return simCurSec().questions[SIM.run.qIdx]; }
@@ -2119,12 +2204,14 @@ function simRenderRun() {
   if (SIM.timerOn) html += '<span class="sim-timer' + (SIM.remaining <= 60 ? ' low' : '') + '" id="simTimer">' + simFmt(SIM.remaining) + '</span>';
   html += '<div class="vc-progress-track"><div class="vc-progress-fill" style="width:' + pct + '%"></div></div>';
   html += '<span style="font-size:0.85em;color:var(--muted)">' + (idx + 1) + '/' + total + '</span></div>';
-  html += '<div class="sim-qcard">';
+  html += '<div class="sim-qcard' + (q.region ? ' region' : '') + '">';
   if (q.image) html += '<img class="sim-qimg" src="' + q.image + '" onclick="teacherOpenImage(this.src)" alt="">';
   if (q.region) {
     // printed original (math notation and figures exactly as in the exam)
+    if (q.shared) html += '<img class="sim-qimg" id="simSharedImg" alt="" style="display:none;" onclick="teacherOpenImage(this.src)">';
     html += '<img class="sim-qimg" id="simRegionImg" alt="" style="display:none;" onclick="teacherOpenImage(this.src)">' +
       '<div class="sim-qtext" id="simRegionWait">טוען את השאלה מהמבחן...</div>' +
+      '<div class="sim-zoomhint" id="simZoomHint" style="display:none;">הקש על השאלה להגדלה</div>' +
       '<div class="sim-opts sim-numrow">';
     for (let i = 0; i < 4; i++) html += '<button class="sim-num' + (q.chosen === i ? ' selected' : '') + '" onclick="simChoose(' + i + ')">' + (i + 1) + '</button>';
     html += '</div>';
@@ -2149,11 +2236,20 @@ function simRenderRun() {
 // drawn first so answering never waits on the PDF.
 async function simFillRegion(q) {
   try {
+    if (q.shared) {
+      const su = await simRenderRegion(q.examId, q.shared);
+      const si = document.getElementById('simSharedImg');
+      if (su && si && simCurQ() === q) { si.src = su; si.style.display = 'block'; }
+    }
     const url = await simRenderRegion(q.examId, q.region);
     if (simCurQ() !== q) return;
     const img = document.getElementById('simRegionImg'), wait = document.getElementById('simRegionWait');
     if (!img) return;
-    if (url) { img.src = url; img.style.display = 'block'; if (wait) wait.remove(); }
+    if (url) {
+      img.src = url; img.style.display = 'block';
+      if (wait) wait.remove();
+      const zh = document.getElementById('simZoomHint'); if (zh) zh.style.display = 'block';
+    }
     else if (wait) wait.textContent = 'לא ניתן להציג את השאלה המקורית (קובץ המבחן חסר).';
   } catch (e) {
     const wait = document.getElementById('simRegionWait');
@@ -2196,6 +2292,16 @@ function simFinish() {
     else mistakes.push({ section: sec.name, text: q.text, chosen: q.chosen, correct: q.correct, options: q.options, byNum: !!q.region });
   }));
   SIM.result = { byType: byType, mistakes: mistakes, saved: false };
+  // practice runs are tracked on their own; only full exams offer a weighted score
+  if (SIM.run.practice) {
+    const t = byType.quant.t ? 'quant' : 'verbal';
+    const o = byType[t];
+    if (o.t) {
+      data.practice.push({ id: Date.now(), date: new Date().toISOString(), type: t, correct: o.c, total: o.t });
+      if (data.practice.length > 200) data.practice = data.practice.slice(-200);
+      save();
+    }
+  }
   SIM.view = 'results'; simRender();
 }
 function simEst(c, t) { return t ? Math.round(50 + (c / t) * 100) : null; }
@@ -2210,12 +2316,19 @@ function simRenderResults() {
   const r = SIM.result, bt = r.byType;
   const vEst = simEst(bt.verbal.c, bt.verbal.t), qEst = simEst(bt.quant.c, bt.quant.t);
   const weighted = simWeighted(vEst, qEst);
+  const practice = !!SIM.run.practice;
+  const tot = bt.quant.t + bt.verbal.t, cor = bt.quant.c + bt.verbal.c;
   let html = '<div class="section-title">תוצאות — ' + escapeHtml(SIM.run.title) + '</div>';
-  html += '<div class="sim-res-score"><div class="sim-res-num">' + weighted + '</div><div class="sim-res-lbl">ציון משוקלל מוערך (200-800)</div></div>';
+  if (practice) {
+    const pct = tot ? Math.round(cor / tot * 100) : 0;
+    html += '<div class="sim-res-score"><div class="sim-res-num">' + pct + '%</div><div class="sim-res-lbl">' + cor + ' מתוך ' + tot + ' נכונות</div></div>';
+  } else {
+    html += '<div class="sim-res-score"><div class="sim-res-num">' + weighted + '</div><div class="sim-res-lbl">ציון משוקלל מוערך (200-800)</div></div>';
+  }
   const secRow = (label, o) => o.t ? '<div class="sim-res-sec"><span>' + label + '</span><div class="topic-bar"><div class="topic-bar-fill" style="width:' + Math.round(o.c / o.t * 100) + '%"></div></div><span style="font-weight:700">' + o.c + '/' + o.t + ' · ' + Math.round(o.c / o.t * 100) + '%</span></div>' : '';
   html += '<div class="info-card">' + secRow('כמותי', bt.quant) + secRow('מילולי', bt.verbal) + '</div>';
-  // save to scores (asked each time)
-  if (!r.saved) html += '<button class="btn" style="margin-top:4px;" onclick="simSaveResult()">שמירת התוצאה בטאב ציונים</button>';
+  if (practice) html += '<div class="sim-empty" style="padding:14px;">✓ נשמר בתובנות התרגול בטאב ציונים</div>';
+  else if (!r.saved) html += '<button class="btn" style="margin-top:4px;" onclick="simSaveResult()">שמירת התוצאה בטאב ציונים</button>';
   else html += '<div class="sim-empty" style="padding:14px;">✓ נשמר בטאב ציונים</div>';
   // writing
   if (SIM.run.writing) {
@@ -2256,7 +2369,7 @@ function simSendWriting() {
   const topic = SIM.run.writing || '';
   const msg = 'נקד את החיבור הבא לפי שיטת הפסיכומטרי (סולם 1-6). התייחס בקצרה למבנה ולטיעון, לאוצר המילים ולבהירות, ולתקינות הלשונית. תן ציון סופי 1-6 עם נימוק במשפט ושתי נקודות מרכזיות לשיפור.' +
     (topic ? '\n\nנושא החיבור: ' + topic : '') + '\n\nהחיבור:\n' + txt;
-  switchTab('teacher', document.querySelector('.nav button[data-tab="teacher"]'));
+  switchTab('teacher');
   teacherNewChat();
   const input = document.getElementById('tcInput');
   if (input) { input.value = msg; teacherSend(); }
@@ -2280,7 +2393,7 @@ function simNormalizeExam(ex) {
       // region of the original page (answers are then picked by number)
       questions: (s.questions || []).filter(q => q && q.text && Number.isInteger(q.correct) && q.correct >= 0 && q.correct <= 3 &&
           (q.region || (Array.isArray(q.options) && q.options.length >= 2 && q.correct < q.options.length)))
-        .map(q => ({ text: String(q.text), image: q.image || null, region: q.region || null, examId: q.examId || ex.id || null,
+        .map(q => ({ text: String(q.text), image: q.image || null, region: q.region || null, shared: q.shared || null, examId: q.examId || ex.id || null,
           options: Array.isArray(q.options) ? q.options.map(String) : [], correct: q.correct }))
     };
   }).filter(s => s && s.questions.length);
@@ -2468,7 +2581,7 @@ function simParseExam(pages, fallbackName, examId) {
     const body = gi >= 0 ? lines.slice(gi) : lines;
     const key = answers[mk.name] || [];
     expected += key.length;
-    const qs = []; let cur = null, mode = null, buf = [], passage = '', inPassage = false, pbuf = [];
+    const qs = []; let cur = null, mode = null, buf = [], passage = '', inPassage = false, pbuf = [], groupIntro = null, groupShared = null;
     const flushBuf = () => { const t = buf.join(' ').trim(); buf = []; if (t.length > 150 && !SIM_GROUP_RE.test(t)) passage = t; };
     for (const o of body) {
       const l = o.t;
@@ -2479,13 +2592,22 @@ function simParseExam(pages, fallbackName, examId) {
           passage = pbuf.join(' ').replace(/\s+/g, ' ').trim(); inPassage = false; pbuf = [];
         } else { if (!/^קראו בעיון/.test(l)) pbuf.push(l); continue; }
       }
+      // a group heading such as "הסקה מתרשים (שאלות 12-9)" introduces a chart that
+      // every question in the group refers to, so it is captured once and shared
+      if (SIM_GROUP_RE.test(l)) { groupIntro = { page: o.page, y: o.y }; groupShared = null; }
       const qm = l.match(SIM_Q_RE);
       const hasOpt = /\([1-4]\)/.test(l);
       if (qm && !hasOpt) {
         const num = Number(qm[1] || qm[2]); const rest = (qm[3] || '').trim();
         if (num >= 1 && num <= 30 && (!cur || num > cur.num)) {
           flushBuf(); if (cur) qs.push(cur);
-          cur = { num: num, text: rest ? [rest] : [], opt: {}, lastOpt: 0, passage: passage, page: o.page, y: o.y };
+          if (groupIntro) {
+            const y1 = groupIntro.y + 12;
+            const y0 = (o.page === groupIntro.page) ? o.y + 9 : floorY[groupIntro.page];
+            if (y1 - y0 > 110) groupShared = { page: groupIntro.page, y0: y0, y1: y1 };
+            groupIntro = null;
+          }
+          cur = { num: num, text: rest ? [rest] : [], opt: {}, lastOpt: 0, passage: passage, page: o.page, y: o.y, shared: groupShared };
           mode = 'q'; continue;
         }
       }
@@ -2525,7 +2647,9 @@ function simParseExam(pages, fallbackName, examId) {
         });
         if (!isFinite(rx0) || rx1 <= rx0) { rx0 = pg ? pg.x0 : 0; rx1 = pg ? pg.x1 : 0; }
         else { rx0 = Math.max(pg ? pg.x0 : 0, rx0 - 42); rx1 = Math.min(pg ? pg.x1 : rx1, rx1 + 6); }
-        out.push({ text: 'שאלה ' + q.num, examId: examId, options: [], correct: correct,
+        let shared = null;
+        if (q.shared) { const sp = pages.find(x => x.page === q.shared.page); shared = { page: q.shared.page, y0: q.shared.y0, y1: q.shared.y1, x0: sp ? sp.x0 : 0, x1: sp ? sp.x1 : 0 }; }
+        out.push({ text: 'שאלה ' + q.num, examId: examId, options: [], correct: correct, shared: shared,
           region: { page: q.page, y0: y0, y1: y1, x0: rx0, x1: rx1 } });
         return;
       }
