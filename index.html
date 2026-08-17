@@ -2049,8 +2049,8 @@ function simRenderHome() {
       '<div class="sim-exam-meta">' + ex.sections.length + ' פרקים · ' + simCountQ(ex) + ' שאלות' + (ex.writing ? ' · חיבור' : '') + '</div></div>' +
       '<button class="tc-li-del" onclick="simDeleteExam(\'' + ex.id + '\')"><svg viewBox="0 0 24 24" fill="none"><path d="M5 7h14M10 7V5h4v2M6 7l1 12h10l1-12" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div>';
   });
-  html += '<button class="btn" style="margin-top:12px;" onclick="document.getElementById(\'simPdfInput\').click()">📄 ייבוא מבחן מקובץ PDF (חכם)</button>';
-  html += '<div class="hint" style="margin-top:6px;line-height:1.5;">קורא קובץ PDF של מבחן דרך מפתח ה-Gemini שלך, מחלץ את השאלות והתשובות אוטומטית, ושומר במכשיר. שאלות עם תרשים מסומנות ל-בדיקה ידנית. מומלץ מודל 2.5 למבחנים גדולים.</div>';
+  html += '<button class="btn" style="margin-top:12px;" onclick="document.getElementById(\'simPdfInput\').click()">📄 ייבוא מבחן מקובץ PDF</button>';
+  html += '<div class="hint" style="margin-top:6px;line-height:1.5;">קורא את הקובץ במכשיר עצמו — בלי AI, בלי טוקנים, עובד גם בלי אינטרנט. מחלץ את פרקי המילולי והכמותי ואת התשובות ממפתח התשובות. שאלות שתלויות בתרשים מסומנות "לבדיקה".</div>';
   html += '<div class="sim-row" style="margin-top:12px;">' +
     '<button class="btn outline" onclick="document.getElementById(\'simImportInput\').click()">ייבוא JSON</button>' +
     '<button class="btn outline" onclick="simExport()">ייצוא</button></div>';
@@ -2254,77 +2254,178 @@ function simNormalizeExam(ex) {
   if (!sections.length) return null;
   return { id: ex.id || ('exam_' + Date.now() + '_' + Math.floor(Math.random() * 1000)), name: ex.name || 'מבחן', sections: sections, writing: ex.writing || '' };
 }
-// Smart PDF import: the user's own Gemini key reads the exam PDF and returns the
-// questions + correct answers (from the answer key) as JSON. Runs on-device; the
-// copyrighted PDF is never bundled into the app or sent anywhere but Gemini.
-// A full exam exceeds a small model's output limit in one shot, so extraction is
-// done in small chunks: first the chapter list, then one call per chapter.
-const SIM_PDF_STRUCT_PROMPT = 'לפניך מבחן פסיכומטרי כקובץ PDF. החזר JSON בלבד במבנה: {"name":"שם/מועד המבחן","writing":"נושא מטלת הכתיבה אם קיים אחרת מחרוזת ריקה","chapters":[{"type":"verbal או quant","name":"שם הפרק כפי שמופיע במבחן"}]}. כלול רק פרקי חשיבה מילולית וכמותית לפי סדר הופעתם. דלג לחלוטין על פרקי אנגלית. אל תחלץ שאלות בשלב זה, רק את רשימת הפרקים.';
-function simChapterPrompt(ch) {
-  return 'מתוך מבחן הפסיכומטרי המצורף (PDF), חלץ את כל השאלות בפרק "' + ch.name + '" (חשיבה ' + (ch.type === 'verbal' ? 'מילולית' : 'כמותית') + ').\n' +
-    'החזר JSON בלבד: {"questions":[{"text":"נוסח השאלה המלא כולל קטע הקריאה אם רלוונטי","options":["תשובה 1","תשובה 2","תשובה 3","תשובה 4"],"correct":0}]}\n' +
-    '- options: בדיוק ארבע התשובות לפי הסדר, כטקסט מלא ובלי המספור.\n' +
-    '- correct: מספר התשובה הנכונה מתוך "מפתח תשובות נכונות" שבסוף הקובץ, פחות 1 (אינדקס 0 עד 3).\n' +
-    '- שאלה עם תרשים/ציור שאי אפשר לייצג בטקסט — הוסף בתחילת ה-text את הסימון "[כולל תרשים] ".\n' +
-    '- אל תמציא שאלות ואל תשנה ניסוח.';
+// Local PDF exam import — parses the file on-device with pdf.js. No AI, no tokens,
+// works offline, and the exam never leaves the browser.
+const SIM_CH_RE = /^(חשיבה מילולית|חשיבה כמותית|אנגלית)\s*-?\s*(מטלת כתיבה|פרק ראשון|פרק שני)?/;
+const SIM_NOISE = [/זכויות שמורות/, /להעתיק או להפיץ/, /מרכז ארצי לבחינות/, /^-\s*\d+\s*-$/, /^\d+$/,
+  /^בפרק זה/, /^הזמן המוקצב/, /^עמוד ריק/, /^מועד אביב/, /^©$/];
+const SIM_HEB = /[֐-׿]/;
+const SIM_Q_RE = /^(?:\.(\d{1,2})|(\d{1,2})\.)\s*(.*)$/;
+const SIM_GROUP_RE = /\(\s*שאלות\s*\d+\s*-\s*\d+\s*\)/;
+// stray figure labels leak out of drawings as short latin fragments ("C E B")
+function simIsFigLabel(l) { return !SIM_HEB.test(l) && l.replace(/[^A-Za-z]/g, '').length <= 8 && l.length <= 16 && !/^\([1-4]\)/.test(l); }
+function simIsNoise(l) { return SIM_NOISE.some(r => r.test(l)) || SIM_CH_RE.test(l) || simIsFigLabel(l); }
+
+async function simPdfPages(buf) {
+  const pdfjs = await import('./pdf.min.mjs');
+  pdfjs.GlobalWorkerOptions.workerSrc = './pdf.worker.min.mjs';
+  const doc = await pdfjs.getDocument({ data: buf, isEvalSupported: false, useSystemFonts: false }).promise;
+  const pages = [];
+  for (let i = 1; i <= doc.numPages; i++) {
+    if (i % 5 === 0) { SIM.pdfMsg = 'קורא עמוד ' + i + ' מתוך ' + doc.numPages + '...'; simRender(); await new Promise(r => setTimeout(r)); }
+    const tc = await (await doc.getPage(i)).getTextContent();
+    const rows = {};
+    for (const it of tc.items) {
+      if (!it.str || !it.str.trim()) continue;
+      const y = Math.round(it.transform[5]);
+      let key = Object.keys(rows).find(k => Math.abs(k - y) <= 2); if (key === undefined) key = y;
+      (rows[key] = rows[key] || []).push({ x: it.transform[4], w: it.width || 0, s: it.str });
+    }
+    const lines = Object.keys(rows).map(Number).sort((a, b) => b - a).map(y => {
+      const items = rows[y].sort((a, b) => b.x - a.x);
+      let out = '';
+      for (let k = 0; k < items.length; k++) {
+        if (k > 0 && items[k - 1].x - (items[k].x + items[k].w) > 0.8) out += ' ';
+        out += items[k].s;
+      }
+      return out.replace(/\s+/g, ' ').trim();
+    }).filter(Boolean);
+    pages.push({ page: i, lines: lines });
+  }
+  return pages;
+}
+function simParseExam(pages, fallbackName) {
+  const keyPage = pages.find(p => p.lines.some(l => /מפתח תשובות נכונות/.test(l)));
+  const keyIdx = keyPage ? keyPage.page : pages.length + 1;
+  const marks = [];
+  for (const pg of pages) {
+    if (pg.page >= keyIdx) break;
+    const h = pg.lines.find(l => SIM_CH_RE.test(l)); if (!h) continue;
+    const m = h.match(SIM_CH_RE); const name = m[1] + (m[2] ? ' - ' + m[2] : '');
+    if (!marks.length || marks[marks.length - 1].name !== name) marks.push({ name: name, start: pg.page });
+  }
+  marks.forEach((m, i) => { m.end = (i + 1 < marks.length) ? marks[i + 1].start - 1 : keyIdx - 1; });
+  const linesOf = (a, b) => { const out = []; for (let p = a; p <= b; p++) { const pg = pages.find(x => x.page === p); if (pg) pg.lines.forEach(l => { if (!simIsNoise(l)) out.push(l); }); } return out; };
+
+  let writing = '';
+  const wm = marks.find(m => /מטלת כתיבה/.test(m.name));
+  if (wm) {
+    const ls = linesOf(wm.start, wm.end);
+    const INSTR = /קִראו|כִתבו|אורך החיבור|המיועד לכך|בעיפרון|גיליון הכתיבה/;
+    let last = -1; ls.forEach((l, i) => { if (INSTR.test(l)) last = i; });
+    writing = ls.slice(last + 1).filter(l => l.length > 25).join(' ').replace(/\s+/g, ' ').trim();
+  }
+
+  const keyLines = []; for (let p = keyIdx; p <= Math.min(keyIdx + 1, pages.length); p++) { const pg = pages.find(x => x.page === p); if (pg) keyLines.push.apply(keyLines, pg.lines); }
+  const answers = {};
+  for (let i = 0; i < keyLines.length; i++) {
+    const m = keyLines[i].match(SIM_CH_RE);
+    if (!m || !m[2] || m[1] === 'אנגלית') continue;
+    const name = m[1] + ' - ' + m[2];
+    for (let j = i + 1; j < Math.min(i + 8, keyLines.length); j++) {
+      const s = keyLines[j].replace(/\s/g, '');
+      if (/^\d{10,}$/.test(s) && !/^123456789/.test(s)) { answers[name] = s.split('').map(Number); break; }
+    }
+  }
+
+  const sections = []; let review = 0, expected = 0;
+  for (const mk of marks) {
+    if (/אנגלית|מטלת כתיבה/.test(mk.name)) continue;
+    const type = /כמותית/.test(mk.name) ? 'quant' : 'verbal';
+    const lines = linesOf(mk.start, mk.end);
+    // chapters open with instructions and (in quant) a numbered formula sheet that
+    // reads like questions; the real ones start at the first "(שאלות N-M)" heading
+    const gi = lines.findIndex(l => SIM_GROUP_RE.test(l));
+    const body = gi >= 0 ? lines.slice(gi) : lines;
+    const qs = []; let cur = null, mode = null, buf = [], passage = '', inPassage = false, pbuf = [];
+    const flushBuf = () => { const t = buf.join(' ').trim(); buf = []; if (t.length > 150 && !SIM_GROUP_RE.test(t)) passage = t; };
+    for (const raw of body) {
+      const l = raw.trim(); if (!l) continue;
+      // a reading passage numbers its own lines "(1)", "(5)" — not answer options
+      if (/קטע קריאה/.test(l)) { if (cur) { qs.push(cur); cur = null; } inPassage = true; pbuf = []; mode = null; continue; }
+      if (inPassage) {
+        const pm = l.match(SIM_Q_RE); const pn = pm ? Number(pm[1] || pm[2]) : 0;
+        if (pm && !/^\([1-4]\)/.test(l) && pn >= 1 && pn <= 30 && (!cur || pn > cur.num) && pbuf.length) {
+          passage = pbuf.join(' ').replace(/\s+/g, ' ').trim(); inPassage = false; pbuf = [];
+        } else { if (!/^קראו בעיון/.test(l)) pbuf.push(l); continue; }
+      }
+      const qm = l.match(SIM_Q_RE);
+      const hasOpt = /\([1-4]\)/.test(l);
+      if (qm && !hasOpt) {
+        const num = Number(qm[1] || qm[2]); const rest = (qm[3] || '').trim();
+        if (num >= 1 && num <= 30 && (!cur || num > cur.num)) {
+          flushBuf(); if (cur) qs.push(cur);
+          cur = { num: num, text: rest ? [rest] : [], opt: {}, lastOpt: 0, passage: passage };
+          mode = 'q'; continue;
+        }
+      }
+      // options may share one line ("(1) 3 (2) 4") or wrap, so each marker indexes itself
+      if (hasOpt && cur) {
+        const parts = l.split(/\(([1-4])\)/);
+        if (parts[0].trim() && cur.lastOpt) cur.opt[cur.lastOpt].push(parts[0].trim());
+        for (let k = 1; k < parts.length; k += 2) {
+          const n = Number(parts[k]); const txt = (parts[k + 1] || '').trim();
+          cur.opt[n] = cur.opt[n] || []; if (txt) cur.opt[n].push(txt); cur.lastOpt = n;
+        }
+        mode = 'o'; continue;
+      }
+      if (cur && mode === 'q') { cur.text.push(l); continue; }
+      if (cur && mode === 'o' && cur.lastOpt) { cur.opt[cur.lastOpt].push(l); continue; }
+      buf.push(l);
+    }
+    if (cur) qs.push(cur);
+    const key = answers[mk.name] || [];
+    expected += key.length;
+    const out = [];
+    qs.forEach(q => {
+      if (![1, 2, 3, 4].every(n => q.opt[n])) return;
+      const opts = [1, 2, 3, 4].map(n => q.opt[n].join(' ').replace(/\s+/g, ' ').trim());
+      let text = q.text.join(' ').replace(/\s+/g, ' ').trim();
+      if (!text) return;
+      const fig = /סרטוט|תרשים|גרף|שלפניכם/.test(text) || opts.some(o => !o);
+      if (q.passage) text = '[קטע קריאה]\n' + q.passage + '\n\n' + text;
+      if (fig) { text = '[לבדיקה — תרשים] ' + text; review++; }
+      const correct = key[q.num - 1] != null ? key[q.num - 1] - 1 : null;
+      if (correct == null || correct < 0 || correct > 3) return;
+      out.push({ text: text, options: opts, correct: correct });
+    });
+    if (out.length) sections.push({ type: type, name: mk.name, questions: out });
+  }
+  const got = sections.reduce((n, s) => n + s.questions.length, 0);
+  // prefer the exam's own season/year over the file name
+  let title = '';
+  for (const pg of pages.slice(0, 6)) {
+    for (const l of pg.lines) { const m = l.match(/מועד\s+(אביב|חורף|קיץ|סתיו)\s*(\d{4})/); if (m) { title = 'מועד ' + m[1] + ' ' + m[2]; break; } }
+    if (title) break;
+  }
+  return { exam: { name: title || fallbackName || 'מבחן מיובא', writing: writing, sections: sections }, got: got, expected: expected, review: review };
 }
 function simImportPdf(input) {
   const f = input.files && input.files[0]; input.value = '';
   if (!f) return;
   if (f.type !== 'application/pdf' && !/\.pdf$/i.test(f.name)) { toast('בחר קובץ PDF'); return; }
-  if (!teacherHasKey()) { toast('כדי לקרוא PDF צריך מפתח Gemini בהגדרות'); switchTab('settings', document.querySelector('.nav button[data-tab="settings"]')); return; }
-  if (f.size > 18 * 1024 * 1024) { toast('הקובץ גדול מדי (עד 18MB)'); return; }
   const rd = new FileReader();
-  rd.onload = e => { const url = e.target.result; simExtractPdf(url.slice(url.indexOf(',') + 1), f.name.replace(/\.pdf$/i, '')); };
-  rd.readAsDataURL(f);
+  rd.onload = e => simExtractPdf(new Uint8Array(e.target.result), f.name.replace(/\.pdf$/i, ''));
+  rd.onerror = () => toast('שגיאה בקריאת הקובץ');
+  rd.readAsArrayBuffer(f);
 }
-async function simPdfCall(b64, prompt) {
-  const key = teacherGetKey();
-  const body = {
-    contents: [{ role: 'user', parts: [{ text: prompt }, { inline_data: { mime_type: 'application/pdf', data: b64 } }] }],
-    generationConfig: { temperature: 0, maxOutputTokens: 8192, responseMimeType: 'application/json' }
-  };
-  let res;
+async function simExtractPdf(buf, name) {
+  SIM.pdfBusy = true; SIM.pdfMsg = 'טוען מנוע PDF...'; SIM.view = 'home'; simRender();
   try {
-    res = await fetch(teacherEndpoint() + encodeURIComponent(key), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-  } catch (e) { const err = new Error('net'); err.status = 0; throw err; }
-  if (!res.ok) { const err = new Error('http'); err.status = res.status; err.detail = await teacherHttpDetail(res); throw err; }
-  const json = await res.json();
-  const cand = json && json.candidates && json.candidates[0];
-  const txt = cand && cand.content && cand.content.parts ? cand.content.parts.map(p => p.text || '').join('') : '';
-  if (!txt) { const err = new Error('empty'); err.status = (cand && cand.finishReason === 'MAX_TOKENS') ? -2 : -1; throw err; }
-  try { return JSON.parse(txt); } catch (e) { const err = new Error('parse'); err.status = -3; throw err; }
-}
-async function simExtractPdf(b64, name) {
-  SIM.pdfBusy = true; SIM.pdfMsg = 'קורא את מבנה המבחן...'; SIM.view = 'home'; simRender();
-  try {
-    const struct = await simPdfCall(b64, SIM_PDF_STRUCT_PROMPT);
-    const chapters = (struct.chapters || []).filter(c => c && (c.type === 'verbal' || c.type === 'quant') && c.name);
-    if (!chapters.length) { const err = new Error('nochap'); err.status = -4; throw err; }
-    const sections = []; let truncated = 0;
-    for (let i = 0; i < chapters.length; i++) {
-      SIM.pdfMsg = 'מחלץ פרק ' + (i + 1) + ' מתוך ' + chapters.length + ': ' + chapters[i].name; simRender();
-      try {
-        const r = await simPdfCall(b64, simChapterPrompt(chapters[i]));
-        const qs = (r.questions || []);
-        if (qs.length) sections.push({ type: chapters[i].type, name: chapters[i].name, questions: qs });
-      } catch (e) { if (e.status === -2) truncated++; else if (e.status === 429 || e.status === 0) throw e; }
-    }
-    if (!sections.length) { const err = new Error('empty'); err.status = -1; throw err; }
-    const exam = { name: name || struct.name || 'מבחן מיובא', writing: struct.writing || '', sections: sections };
-    const added = simImportExams([exam]);
+    const pages = await simPdfPages(buf);
+    SIM.pdfMsg = 'מנתח שאלות...'; simRender();
+    await new Promise(r => setTimeout(r));
+    const res = simParseExam(pages, name);
+    if (!res.got) { toast('לא זוהו שאלות בקובץ. ודא שזה מבחן פסיכומטרי מלא עם מפתח תשובות.'); SIM.pdfBusy = false; SIM.pdfMsg = ''; simRender(); return; }
+    simImportExams([res.exam]);
     SIM.pdfBusy = false; SIM.pdfMsg = ''; simRender();
-    let msg = added ? ('המבחן יובא (' + sections.length + ' פרקים)') : 'לא זוהו שאלות תקינות';
-    if (truncated) msg += ' · ' + truncated + ' פרקים לא חולצו במלואם — נסה מודל 2.5';
+    let msg = 'יובאו ' + res.got + ' שאלות';
+    if (res.expected > res.got) msg += ' · ' + (res.expected - res.got) + ' לא חולצו (תלויות תרשים)';
+    if (res.review) msg += ' · ' + res.review + ' לבדיקה';
     toast(msg);
   } catch (err) {
     SIM.pdfBusy = false; SIM.pdfMsg = ''; simRender();
-    let m;
-    if (err.status === -2) m = 'פרק גדול מדי לחילוץ. בחר מודל 2.5 בהגדרות ונסה שוב.';
-    else if (err.status === -3) m = 'החילוץ לא החזיר JSON תקין. נסה שוב, או בחר מודל 2.5.';
-    else if (err.status === -4) m = 'לא זוהו פרקי מבחן בקובץ. ודא שזה קובץ מבחן מלא.';
-    else m = teacherErrText(err);
-    toast(m);
+    toast('שגיאה בקריאת ה-PDF: ' + (err && err.message ? err.message : 'לא ידוע'));
   }
 }
 function simImportExams(arr) {
