@@ -299,12 +299,19 @@
   .tc-status.ok { color: var(--success); }
   .tc-status.off { color: var(--muted); }
   /* ---- Simulations ---- */
-  .sim-modes { display: flex; flex-direction: column; gap: 10px; margin-bottom: 18px; }
+  .sim-modes { display: flex; flex-direction: column; gap: 14px; margin-bottom: 18px; }
   .sim-mode { text-align: right; border: 1px solid var(--line); background: var(--card); border-radius: 14px; padding: 14px 16px; cursor: pointer; box-shadow: var(--shadow-sm); font-family: inherit; }
   .sim-mode:disabled { opacity: 0.5; cursor: default; }
   .sim-mode-title { font-weight: 700; color: var(--text); font-size: 1em; margin-bottom: 3px; }
   .sim-mode-sub { font-size: 0.82em; color: var(--muted); line-height: 1.45; }
+  .sim-mode.big { padding: 26px 22px; border-radius: 18px; display: flex; align-items: center; gap: 16px; }
+  .sim-mode.big .sim-mode-ic { font-size: 2em; line-height: 1; flex: none; }
+  .sim-mode.big .sim-mode-title { font-size: 1.35em; margin-bottom: 6px; }
+  .sim-mode.big .sim-mode-sub { font-size: 0.92em; }
   .sim-section-title { font-size: 0.9em; font-weight: 700; color: var(--muted); margin: 18px 0 8px; }
+  .sim-vault-toggle { display: flex; align-items: center; justify-content: space-between; width: 100%; background: none; border: none; font-family: inherit; cursor: pointer; padding: 0; color: var(--muted); font-size: 0.9em; font-weight: 700; margin: 18px 0 8px; }
+  .sim-vault-toggle svg { width: 16px; height: 16px; transition: transform 0.2s; }
+  .sim-vault-toggle.open svg { transform: rotate(180deg); }
   .sim-exam-item { display: flex; align-items: center; justify-content: space-between; background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; margin-bottom: 8px; }
   .sim-exam-name { font-weight: 600; color: var(--text); }
   .sim-exam-meta { font-size: 0.8em; color: var(--muted); margin-top: 2px; }
@@ -2081,7 +2088,7 @@ function teacherDeleteMethod(id) {
 }
 
 /* ================= Simulations module ================= */
-const SIM = { view: 'home', mode: null, timerOn: false, run: null, result: null, timerId: null, remaining: 0, pdfBusy: false, pdfMsg: '', pCount: 10 };
+const SIM = { view: 'home', mode: null, timerOn: false, run: null, result: null, timerId: null, remaining: 0, pdfBusy: false, pdfMsg: '', pCount: 10, vaultOpen: false };
 const SIM_CH_SIZE = 20;       // questions per simulated chapter
 const SIM_SEC_MIN = 20 * 60;  // seconds per chapter when the timer is on
 
@@ -2105,10 +2112,12 @@ function simRender() {
   if (SIM.view === 'results') return simRenderResults();
   simRenderHome();
 }
-function simModeCard(mode, title, sub, enabled) {
-  return '<button class="sim-mode" ' + (enabled ? 'onclick="simSetup(\'' + mode + '\')"' : 'disabled') + '>' +
-    '<div class="sim-mode-title">' + title + '</div><div class="sim-mode-sub">' + sub + (enabled ? '' : ' (אין מספיק שאלות)') + '</div></button>';
+function simModeCard(mode, title, sub, enabled, icon) {
+  return '<button class="sim-mode big" ' + (enabled ? 'onclick="simSetup(\'' + mode + '\')"' : 'disabled') + '>' +
+    '<div class="sim-mode-ic">' + (icon || '') + '</div>' +
+    '<div><div class="sim-mode-title">' + title + '</div><div class="sim-mode-sub">' + sub + (enabled ? '' : ' (אין מספיק שאלות)') + '</div></div></button>';
 }
+function simToggleVault() { SIM.vaultOpen = !SIM.vaultOpen; simRenderHome(); }
 function simRenderHome() {
   const root = document.getElementById('simRoot');
   if (SIM.pdfBusy) {
@@ -2120,19 +2129,24 @@ function simRenderHome() {
   let html = '<div class="section-title">מבחנים וסימולציות</div>';
   if (!exams.length) html += '<div class="sim-empty">אין עדיין מבחנים במכשיר.<br>ייבא קובץ PDF של מבחן כדי להתחיל.</div>';
   html += '<div class="sim-modes">';
-  html += simModeCard('full', 'מבחן מלא', 'מבחן שלם — פרקי כמותי ומילולי. אמת או מעורבב.', exams.length > 0);
-  html += simModeCard('practice', 'תרגול', 'בחר כמות שאלות וסוג פרק לתרגול ממוקד.', nQ > 0 || nV > 0);
+  html += simModeCard('full', 'מבחן מלא', 'מבחן שלם — פרקי כמותי ומילולי. אמת או מעורבב.', exams.length > 0, '📝');
+  html += simModeCard('practice', 'תרגול', 'בחר כמות שאלות וסוג פרק לתרגול ממוקד.', nQ > 0 || nV > 0, '🎯');
   html += '</div>';
-  html += '<div class="sim-section-title">מאגר המבחנים</div>';
-  exams.forEach(ex => {
-    html += '<div class="sim-exam-item"><div><div class="sim-exam-name">' + escapeHtml(ex.name) + '</div>' +
-      '<div class="sim-exam-meta">' + ex.sections.length + ' פרקים · ' + simCountQ(ex) + ' שאלות' + (ex.writing ? ' · חיבור' : '') + '</div></div>' +
-      '<button class="tc-li-del" onclick="simDeleteExam(\'' + ex.id + '\')"><svg viewBox="0 0 24 24" fill="none"><path d="M5 7h14M10 7V5h4v2M6 7l1 12h10l1-12" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div>';
-  });
-  html += '<button class="btn" style="margin-top:12px;" onclick="document.getElementById(\'simPdfInput\').click()">📄 ייבוא מבחן מקובץ PDF</button>';
-  html += '<div class="sim-row" style="margin-top:10px;">' +
-    '<button class="btn outline" onclick="document.getElementById(\'simImportInput\').click()">ייבוא JSON</button>' +
-    '<button class="btn outline" onclick="simExport()">ייצוא</button></div>';
+  const vaultOpen = SIM.vaultOpen || !exams.length;
+  const chevron = '<svg viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  html += '<button class="sim-vault-toggle' + (vaultOpen ? ' open' : '') + '" onclick="simToggleVault()">' +
+    '<span>מאגר המבחנים' + (exams.length ? ' (' + exams.length + ')' : '') + '</span>' + chevron + '</button>';
+  if (vaultOpen) {
+    exams.forEach(ex => {
+      html += '<div class="sim-exam-item"><div><div class="sim-exam-name">' + escapeHtml(ex.name) + '</div>' +
+        '<div class="sim-exam-meta">' + ex.sections.length + ' פרקים · ' + simCountQ(ex) + ' שאלות' + (ex.writing ? ' · חיבור' : '') + '</div></div>' +
+        '<button class="tc-li-del" onclick="simDeleteExam(\'' + ex.id + '\')"><svg viewBox="0 0 24 24" fill="none"><path d="M5 7h14M10 7V5h4v2M6 7l1 12h10l1-12" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div>';
+    });
+    html += '<button class="btn" style="margin-top:12px;" onclick="document.getElementById(\'simPdfInput\').click()">📄 ייבוא מבחן מקובץ PDF</button>';
+    html += '<div class="sim-row" style="margin-top:10px;">' +
+      '<button class="btn outline" onclick="document.getElementById(\'simImportInput\').click()">ייבוא JSON</button>' +
+      '<button class="btn outline" onclick="simExport()">ייצוא</button></div>';
+  }
   root.innerHTML = html;
 }
 function simSetup(mode) { SIM.mode = mode; SIM.view = 'setup'; simRender(); }
