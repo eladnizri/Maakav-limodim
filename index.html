@@ -310,6 +310,9 @@
   .sim-mode.big .sim-mode-ic { font-size: 2em; line-height: 1; flex: none; }
   .sim-mode.big .sim-mode-title { font-size: 1.35em; margin-bottom: 6px; }
   .sim-mode.big .sim-mode-sub { font-size: 0.92em; }
+  .sim-mode.sel { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); background: var(--primary-soft); }
+  .drill-term { direction: ltr; color: var(--primary); font-variant-numeric: tabular-nums; letter-spacing: 0.01em; }
+  .vc-opt.drill-num { direction: ltr; font-variant-numeric: tabular-nums; font-size: 1.2em; font-weight: 600; }
   .sim-section-title { font-size: 0.9em; font-weight: 700; color: var(--muted); margin: 18px 0 8px; }
   .sim-vault-toggle { display: flex; align-items: center; justify-content: space-between; width: 100%; background: none; border: none; font-family: inherit; cursor: pointer; padding: 0; color: var(--muted); font-size: 0.9em; font-weight: 700; margin: 18px 0 8px; }
   .sim-vault-toggle svg { width: 16px; height: 16px; transition: transform 0.2s; }
@@ -537,6 +540,10 @@
     <div id="teacherRoot" class="tc-wrap"></div>
     <input type="file" id="tcImgInput" accept="image/*" style="display:none;" onchange="teacherPickImage(this)">
   </div>
+
+  <div id="tab-drill" class="tab-content">
+    <div id="drillRoot"></div>
+  </div>
 </div>
 <div class="nav">
   <button class="active" data-tab="topics" onclick="switchTab('topics', this)">
@@ -590,6 +597,10 @@
     <button class="study-item" onclick="studyGo('sim')">
       <svg viewBox="0 0 24 24" fill="none"><path d="M8 4h8a1 1 0 011 1v14a1 1 0 01-1 1H8a1 1 0 01-1-1V5a1 1 0 011-1z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M10 9h4M10 12.5h4M10 16h2.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
       <div><div class="study-item-t">מבחנים וסימולציות</div><div class="study-item-s">מבחן מלא או תרגול ממוקד</div></div>
+    </button>
+    <button class="study-item" onclick="studyGo('drill')">
+      <svg viewBox="0 0 24 24" fill="none"><rect x="3.5" y="3.5" width="17" height="17" rx="2.5" stroke="currentColor" stroke-width="1.7"/><path d="M3.5 9h17M9 3.5v17" stroke="currentColor" stroke-width="1.5"/><path d="M13.5 13.5l1.5 1.5 2.5-2.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <div><div class="study-item-t">לוח הכפל וחזקות</div><div class="study-item-s">שינון מהיר בשאלות אמריקאיות</div></div>
     </button>
   </div>
 </div>
@@ -1036,7 +1047,7 @@ function hideConfirm() {
   _confirmCb = null;
 }
 // teacher, words and simulations live behind the "לימוד" nav button
-const STUDY_TABS = ['teacher', 'words', 'sim'];
+const STUDY_TABS = ['teacher', 'words', 'sim', 'drill'];
 let lastStudyTab = 'teacher';
 function switchTab(name, btn) {
   if (STUDY_TABS.indexOf(name) >= 0) lastStudyTab = name;
@@ -1045,11 +1056,12 @@ function switchTab(name, btn) {
   document.getElementById('tab-'+name).classList.add('active');
   const navBtn = btn || document.querySelector('.nav button[data-tab="' + (STUDY_TABS.indexOf(name) >= 0 ? 'study' : name) + '"]');
   if (navBtn) navBtn.classList.add('active');
-  document.getElementById('mainHeader').style.display = (name === 'words' || name === 'teacher') ? 'none' : 'block';
+  document.getElementById('mainHeader').style.display = (name === 'words' || name === 'teacher' || name === 'drill') ? 'none' : 'block';
   if (name === 'scores') renderScores();
   if (name === 'sim') simInit();
   if (name === 'words') vcInit();
   if (name === 'teacher') teacherInit();
+  if (name === 'drill') drillInit();
   if (name === 'settings') teacherRefreshKeyStatus();
 }
 function studyMenu() { document.getElementById('studySheet').classList.add('open'); }
@@ -1083,6 +1095,7 @@ function swipeGoToSlot(i, dir) {
 function swipeBlocked() {
   if (document.querySelector('.study-sheet.open, .image-modal.open, .modal-overlay.open, .tc-lightbox.open')) return true;
   if (typeof SIM !== 'undefined' && SIM.view === 'run') return true;  // don't lose test progress
+  if (typeof DRILL !== 'undefined' && DRILL.view === 'run') return true;  // don't lose drill progress
   return false;
 }
 (function initSwipeNav() {
@@ -2818,6 +2831,146 @@ function simExport() {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a'); a.href = url; a.download = 'simulations.json'; a.click();
   URL.revokeObjectURL(url);
+}
+
+/* ================= Multiplication & powers drill ================= */
+const DRILL = { view: 'setup', topic: 'mix', count: 20, qs: [], idx: 0, correct: 0, answered: false, wrong: [] };
+const DRILL_SUP = { 2: '²', 3: '³', 4: '⁴', 5: '⁵', 6: '⁶', 7: '⁷', 8: '⁸', 9: '⁹' };
+
+// authoritative powers list from the study table (base, exponent, value)
+function drillPowerList() {
+  const list = [];
+  for (let n = 2; n <= 20; n++) list.push({ base: n, exp: 2, val: n * n });   // squares 2²..20²
+  [[2,3],[2,4],[2,5],[2,6],[2,7],[2,8],[3,3],[3,4],[3,5],[4,3],[4,4],[5,3],[5,4],[6,3],[7,3]]
+    .forEach(([b, e]) => list.push({ base: b, exp: e, val: Math.pow(b, e) }));
+  return list;
+}
+function drillMulList() {
+  const list = [];
+  for (let a = 2; a <= 12; a++) for (let b = 2; b <= 12; b++) list.push({ a, b, val: a * b });
+  return list;
+}
+function drillShuffle(arr) { for (let i = arr.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [arr[i], arr[j]] = [arr[j], arr[i]]; } return arr; }
+function drillSample(pool, n) {
+  const out = []; let bag = drillShuffle(pool.slice());
+  while (out.length < n) { if (!bag.length) bag = drillShuffle(pool.slice()); out.push(bag.pop()); }
+  return out;
+}
+// pick 3 plausible distractors near `correct` from a universe of real numbers
+function drillDistractors(correct, universe) {
+  const cand = [...new Set(universe.filter(v => v !== correct && v > 0))];
+  cand.sort((x, y) => Math.abs(x - correct) - Math.abs(y - correct));
+  const near = drillShuffle(cand.slice(0, 8)).slice(0, 3);
+  let d = 1;
+  while (near.length < 3) { const v = correct + d; if (v > 0 && v !== correct && near.indexOf(v) < 0) near.push(v); d = d > 0 ? -d : -d + 1; }
+  return near;
+}
+const DRILL_MUL_VALS = drillMulList().map(o => o.val);
+const DRILL_POW_VALS = drillPowerList().map(o => o.val);
+
+function drillMakeMul(item) {
+  const correct = item.val;
+  return { term: item.a + ' × ' + item.b, prompt: 'כמה זה?', badge: 'כפל', correct: correct,
+    opts: drillShuffle([correct, ...drillDistractors(correct, DRILL_MUL_VALS)]) };
+}
+function drillMakePow(item) {
+  if (Math.random() < 0.5) {  // reverse: value = base^?  -> answer the exponent
+    const correct = item.exp;
+    const exps = drillShuffle([2,3,4,5,6,7,8].filter(e => e !== correct)).slice(0, 3);
+    return { term: item.val + ' = ' + item.base + '^?', prompt: 'השלם את החזקה', badge: 'חזקות', correct: correct,
+      opts: drillShuffle([correct, ...exps]) };
+  }
+  const correct = item.val;
+  return { term: item.base + (DRILL_SUP[item.exp] || ('^' + item.exp)), prompt: 'כמה זה?', badge: 'חזקות', correct: correct,
+    opts: drillShuffle([correct, ...drillDistractors(correct, DRILL_POW_VALS)]) };
+}
+function drillBuild() {
+  const n = DRILL.count;
+  let qs;
+  if (DRILL.topic === 'mul') qs = drillSample(drillMulList(), n).map(drillMakeMul);
+  else if (DRILL.topic === 'pow') qs = drillSample(drillPowerList(), n).map(drillMakePow);
+  else {
+    const half = Math.ceil(n / 2);
+    qs = drillShuffle(drillSample(drillMulList(), half).map(drillMakeMul)
+      .concat(drillSample(drillPowerList(), n - half).map(drillMakePow)));
+  }
+  DRILL.qs = qs; DRILL.idx = 0; DRILL.correct = 0; DRILL.answered = false; DRILL.wrong = [];
+}
+function drillInit() { DRILL.view = 'setup'; drillRender(); }
+function drillSetTopic(t) { DRILL.topic = t; drillRender(); }
+function drillSetCount(n) { DRILL.count = n; drillRender(); }
+function drillStart() { drillBuild(); DRILL.view = 'run'; drillRender(); }
+function drillRender() {
+  const root = document.getElementById('drillRoot');
+  if (DRILL.view === 'setup') return drillRenderSetup(root);
+  if (DRILL.view === 'done') return drillRenderDone(root);
+  drillRenderRun(root);
+}
+function drillRenderSetup(root) {
+  const topics = [['mul', 'לוח הכפל', '2 עד 12 · תרגילי כפל', '✖️'], ['pow', 'טבלת חזקות', 'ריבועים וחזקות לשינון', '🔢'], ['mix', 'מעורב', 'כפל וחזקות יחד', '🔀']];
+  let html = '<div class="section-title">לוח הכפל וחזקות</div>';
+  html += '<div class="sim-modes">';
+  topics.forEach(([t, name, sub, ic]) => {
+    html += '<button class="sim-mode big' + (DRILL.topic === t ? ' sel' : '') + '" onclick="drillSetTopic(\'' + t + '\')">' +
+      '<div class="sim-mode-ic">' + ic + '</div><div><div class="sim-mode-title">' + name + '</div><div class="sim-mode-sub">' + sub + '</div></div></button>';
+  });
+  html += '</div>';
+  html += '<div class="sim-section-title">כמות שאלות</div><div class="vc-seg accent" style="margin-bottom:4px;">';
+  [10, 20, 30, 50].forEach(n => { html += '<button class="' + (DRILL.count === n ? 'active' : '') + '" onclick="drillSetCount(' + n + ')">' + n + '</button>'; });
+  html += '</div>';
+  html += '<button class="btn" style="margin-top:18px;" onclick="drillStart()">התחלה</button>';
+  root.innerHTML = html;
+}
+function drillRenderRun(root) {
+  const q = DRILL.qs[DRILL.idx];
+  const pct = Math.round((DRILL.idx / DRILL.qs.length) * 100);
+  const last = DRILL.idx + 1 >= DRILL.qs.length;
+  let html = '<button class="btn danger-text" onclick="drillInit()">→ יציאה</button>';
+  html += '<div class="vc-progress-row" style="margin-top:10px;"><span>' + (DRILL.idx + 1) + ' / ' + DRILL.qs.length + '</span>' +
+    '<div class="vc-progress-track"><div class="vc-progress-fill" style="width:' + pct + '%"></div></div></div>';
+  html += '<div class="vc-quiz-score">' + DRILL.correct + ' / ' + DRILL.idx + ' נכונות</div>';
+  html += '<div class="vc-quiz-q"><span class="vc-badge">' + q.badge + '</span>' +
+    '<div class="vc-quiz-prompt">' + q.prompt + '</div><div class="vc-quiz-term drill-term">' + q.term + '</div></div>';
+  html += '<div class="vc-opts" id="drillOpts">';
+  q.opts.forEach((o, i) => { html += '<button class="vc-opt drill-num" onclick="drillAnswer(' + i + ')">' + o + '</button>'; });
+  html += '</div>';
+  html += '<button class="vc-quiz-next" id="drillNext" style="display:none;" onclick="drillAdvance()">' + (last ? 'סיום ←' : 'הבא ←') + '</button>';
+  root.innerHTML = html;
+}
+function drillAnswer(i) {
+  if (DRILL.answered) return;
+  DRILL.answered = true;
+  const q = DRILL.qs[DRILL.idx];
+  const btns = document.querySelectorAll('#drillOpts .vc-opt');
+  btns.forEach((b, j) => { b.classList.add('locked'); if (q.opts[j] === q.correct) b.classList.add('correct'); else if (j === i) b.classList.add('wrong'); });
+  if (q.opts[i] === q.correct) DRILL.correct++;
+  else DRILL.wrong.push({ term: q.term, correct: q.correct, badge: q.badge });
+  document.getElementById('drillNext').style.display = 'block';
+}
+function drillAdvance() {
+  DRILL.answered = false;
+  if (DRILL.idx + 1 >= DRILL.qs.length) { DRILL.view = 'done'; drillRender(); return; }
+  DRILL.idx++; drillRender();
+}
+function drillRenderDone(root) {
+  const total = DRILL.qs.length;
+  const pct = total ? Math.round((DRILL.correct / total) * 100) : 0;
+  const msg = pct >= 90 ? 'מצוין! כמעט מושלם 🏆' : pct >= 70 ? 'יפה מאוד, ממשיכים להתחזק 💪' : 'עוד קצת תרגול וזה ייכנס לראש 🔁';
+  let html = '<div class="section-title">סיכום תרגול</div>';
+  html += '<div class="vc-quiz-q"><div class="vc-quiz-prompt">' + msg + '</div>' +
+    '<div class="vc-quiz-term he">' + DRILL.correct + ' / ' + total + '</div>' +
+    '<div class="vc-quiz-prompt" style="margin-top:8px;">' + pct + '% נכונות</div></div>';
+  if (DRILL.wrong.length) {
+    html += '<div class="sim-section-title">לחזור על אלה</div>';
+    DRILL.wrong.forEach(w => {
+      const ans = /\^\?$/.test(w.term) ? w.term.replace(/\^\?$/, '^' + w.correct) : w.term + ' = ' + w.correct;
+      html += '<div class="sim-exam-item"><div><div class="sim-exam-name drill-term" style="text-align:right;">' + ans + '</div>' +
+        '<div class="sim-exam-meta">' + w.badge + '</div></div></div>';
+    });
+  }
+  html += '<button class="btn" style="margin-top:16px;" onclick="drillStart()">עוד סבב</button>';
+  html += '<button class="btn outline" style="margin-top:10px;" onclick="drillInit()">שינוי נושא</button>';
+  root.innerHTML = html;
 }
 
 load(); renderTopics(); renderScores(); teacherRefreshKeyStatus();
