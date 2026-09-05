@@ -187,6 +187,9 @@
   .nav button.active .nav-icon { transform: translateY(-1px) scale(1.06); }
   .nav button:active .nav-icon { transform: scale(0.9); }
 
+  .storage-alert { background: var(--rose-soft); border: 2px solid var(--danger); border-radius: var(--radius); padding: 16px 18px; margin-bottom: 14px; color: var(--danger-dark); font-size: 0.92em; line-height: 1.5; box-shadow: 0 4px 0 #F5C9C9; }
+  .storage-alert strong { font-size: 1.05em; font-weight: 800; }
+  .storage-alert b { color: var(--text); }
   .toast { position: fixed; bottom: 104px; left: 50%; transform: translateX(-50%) translateY(20px); background: var(--text); color: #fff; padding: 14px 24px; border-radius: 30px; font-size: 0.9em; font-weight: 700; opacity: 0; pointer-events: none; transition: all 0.3s; z-index: 200; white-space: nowrap; box-shadow: 0 10px 28px rgba(0,0,0,0.24); }
   .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
   .section-title { font-size: 1.32em; font-weight: 800; margin: 6px 4px 16px; letter-spacing: -0.03em; }
@@ -472,6 +475,7 @@
   </div>
 </div>
 <div class="content">
+  <div id="storageAlert" class="storage-alert" style="display:none;"></div>
   <div id="tab-topics" class="tab-content active">
     <div style="margin-bottom:14px;">
       <button class="btn" onclick="switchTab('scores', document.querySelector('[data-tab=scores]')); openScoreForm();">הוספת ציון סימולציה</button>
@@ -714,8 +718,45 @@ let data = {
 };
 let uiNotesOpen = {};
 let currentImageKey = null;
+
+/* ---- storage access ----
+   Safari throws on localStorage when "Block All Cookies" is on, and on quota
+   when the device is full. An unguarded read used to take the whole app down
+   with it — no topics, no countdown — so every access goes through here. */
+let storageBlocked = false, quotaHit = false;
+function lsGet(key) {
+  try { return localStorage.getItem(key); }
+  catch (e) { storageBlocked = true; return null; }
+}
+function lsSet(key, val) {
+  try { localStorage.setItem(key, val); return true; }
+  catch (e) {
+    if (e && (e.name === 'QuotaExceededError' || e.code === 22)) quotaHit = true; else storageBlocked = true;
+    storageWarn();
+    return false;
+  }
+}
+function lsRemove(key) { try { localStorage.removeItem(key); return true; } catch (e) { return false; } }
+let storageWarned = false;
+function storageWarn() {
+  if (storageWarned) return;
+  storageWarned = true;
+  toast(quotaHit ? 'האחסון במכשיר מלא — השינוי לא נשמר' : 'האחסון חסום — השינוי לא נשמר');
+}
+/* A blocked store means the data is unreachable, NOT gone. Say so loudly, because
+   the alternative is a blank screen that reads as "everything was deleted". */
+function storageBanner() {
+  if (!storageBlocked) return;
+  const el = document.getElementById('storageAlert');
+  if (!el) return;
+  el.innerHTML = '<strong>האחסון של האתר חסום בדפדפן</strong>' +
+    '<div style="margin-top:8px;font-weight:600;line-height:1.6;">הנתונים שלך כנראה לא נמחקו — האפליקציה פשוט לא יכולה לגשת אליהם.<br>' +
+    'פתח <b>הגדרות → Safari</b> וּודא שהאפשרות <b>חסום את כל העוגיות</b> כבויה, ואז רענן את הדף.<br>' +
+    'אם אתה גולש במצב פרטי — צא ממנו ופתח את האפליקציה בטאב רגיל.</div>';
+  el.style.display = 'block';
+}
 function load() {
-  const saved = localStorage.getItem('psychoTracker');
+  const saved = lsGet('psychoTracker');
   if (saved) { try { data = Object.assign(data, JSON.parse(saved)); } catch(e) {} }
   if (!data.vocab) data.vocab = { he: {}, en: {} };
   if (!data.vocab.he) data.vocab.he = {};
@@ -731,9 +772,11 @@ function load() {
   if (!data.sims.qstats || typeof data.sims.qstats !== 'object') data.sims.qstats = {};
   simMigrateTags();
   if (!Array.isArray(data.practice)) data.practice = [];
-  document.getElementById('examDate').value = data.settings.examDate;
+  if (!data.settings || typeof data.settings !== 'object') data.settings = { examDate: '2026-12-04' };
+  const ed = document.getElementById('examDate');
+  if (ed) ed.value = data.settings.examDate;
 }
-function save() { localStorage.setItem('psychoTracker', JSON.stringify(data)); }
+function save() { return lsSet('psychoTracker', JSON.stringify(data)); }
 function escapeHtml(str) {
   return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
@@ -1108,7 +1151,7 @@ function importData(input) {
       return;
     }
     showConfirm('ייבוא גיבוי', 'פעולה זו תחליף את כל הנתונים הקיימים כרגע בנתונים מהקובץ. להמשיך?', 'ייבא והחלף', () => {
-      localStorage.setItem('psychoTracker', JSON.stringify(parsed));
+      if (!lsSet('psychoTracker', JSON.stringify(parsed))) return;
       toast('הגיבוי יובא בהצלחה');
       setTimeout(() => location.reload(), 700);
     });
@@ -1122,7 +1165,7 @@ function importData(input) {
 }
 function resetData() {
   showConfirm('איפוס נתונים', 'לאפס את כל ההתקדמות? פעולה זו אינה הפיכה.', 'אפס הכל', () => {
-    localStorage.removeItem('psychoTracker');
+    lsRemove('psychoTracker');
     location.reload();
   });
 }
@@ -1471,12 +1514,12 @@ function vcQuizAdvance() {
 const TEACHER_API_BASE = 'https://generativelanguage.googleapis.com/v1beta/';
 const TEACHER_DEFAULT_MODEL = 'gemini-2.0-flash';
 const TEACHER_FALLBACK_MODELS = ['gemini-2.0-flash','gemini-2.0-flash-lite','gemini-2.5-flash','gemini-2.5-pro'];
-function teacherGetModel() { return (localStorage.getItem('geminiModel') || TEACHER_DEFAULT_MODEL).trim(); }
-function teacherSetModel(m) { if (m && m.trim()) localStorage.setItem('geminiModel', m.trim()); }
+function teacherGetModel() { return (lsGet('geminiModel') || TEACHER_DEFAULT_MODEL).trim(); }
+function teacherSetModel(m) { if (m && m.trim()) lsSet('geminiModel', m.trim()); }
 function teacherEndpoint() { return TEACHER_API_BASE + 'models/' + teacherGetModel() + ':generateContent?key='; }
 function teacherModelList() {
   try {
-    const raw = localStorage.getItem('geminiModelList');
+    const raw = lsGet('geminiModelList');
     if (raw) { const a = JSON.parse(raw); if (Array.isArray(a) && a.length) return a; }
   } catch (e) {}
   return TEACHER_FALLBACK_MODELS.slice();
@@ -1508,7 +1551,7 @@ async function teacherLoadModels() {
       .map(m => (m.name || '').replace(/^models\//, ''))
       .filter(n => n && n.indexOf('embedding') === -1);
     if (!models.length) { if (st) st.textContent = 'לא נמצאו מודלים שתומכים בשיחה עבור המפתח הזה.'; return; }
-    localStorage.setItem('geminiModelList', JSON.stringify(models));
+    lsSet('geminiModelList', JSON.stringify(models));
     if (models.indexOf(teacherGetModel()) === -1) teacherSetModel(models[0]);
     teacherRenderModelOptions();
     if (st) st.textContent = 'נמצאו ' + models.length + ' מודלים זמינים. נבחר: ' + teacherGetModel();
@@ -1666,9 +1709,9 @@ let tcError = null;
 let tcSeq = 0;
 function tcNewId() { return Date.now() * 1000 + (tcSeq++ % 1000); }
 
-function teacherGetKey() { return (localStorage.getItem('geminiKey') || '').trim(); }
+function teacherGetKey() { return (lsGet('geminiKey') || '').trim(); }
 function teacherHasKey() { return teacherGetKey().length > 0; }
-function teacherSetKey(k) { if (k && k.trim()) localStorage.setItem('geminiKey', k.trim()); }
+function teacherSetKey(k) { if (k && k.trim()) lsSet('geminiKey', k.trim()); }
 function teacherRefreshKeyStatus() {
   const has = teacherHasKey();
   const st = document.getElementById('geminiKeyStatus');
@@ -1700,7 +1743,7 @@ function teacherSaveKeyFromSetup() {
 }
 function teacherDeleteKey() {
   showConfirm('מחיקת מפתח API', 'המפתח יימחק מהמכשיר הזה. תצטרך להדביק אותו שוב כדי להשתמש במורה.', 'מחק מפתח', () => {
-    localStorage.removeItem('geminiKey');
+    lsRemove('geminiKey');
     teacherRefreshKeyStatus();
     if (document.getElementById('tab-teacher').classList.contains('active')) teacherInit();
     toast('המפתח נמחק');
@@ -2004,7 +2047,7 @@ async function teacherCallApi(chat, onChunk) {
   // Thinking adds noticeable latency and the tutor answers are meant to be short,
   // so it is disabled where the model allows it. Some models reject the field —
   // the first rejection is remembered so later calls skip it in one round trip.
-  let dropThinking = localStorage.getItem('geminiNoThinkCfg') === '1';
+  let dropThinking = lsGet('geminiNoThinkCfg') === '1';
   const buildBody = drop => {
     const gen = { temperature: 0.4, maxOutputTokens: drop ? 3000 : 1200 };
     if (!drop) gen.thinkingConfig = { thinkingBudget: 0 };
@@ -2042,7 +2085,7 @@ async function teacherCallApi(chat, onChunk) {
     out = await attempt(dropThinking);
   } catch (err) {
     if (err.status === 400 && !dropThinking && /thinking|unknown name|generationconfig/i.test(err.detail || '')) {
-      localStorage.setItem('geminiNoThinkCfg', '1');
+      lsSet('geminiNoThinkCfg', '1');
       out = await attempt(true);
     } else throw err;
   }
@@ -3380,7 +3423,10 @@ function drillRenderDone(root) {
   root.innerHTML = html;
 }
 
-load(); renderTopics(); renderScores(); teacherRefreshKeyStatus();
+// Each step is independent — a failure in one must not leave the app blank.
+[load, renderTopics, renderScores, teacherRefreshKeyStatus, storageBanner].forEach(fn => {
+  try { fn(); } catch (e) { console.error('init step failed:', fn.name, e); }
+});
 </script>
 </body>
 </html>
