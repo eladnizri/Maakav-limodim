@@ -64,6 +64,15 @@
   .tile.rose   { --t-bg: var(--rose);    --t-shade: var(--rose-dark);    --t-glow: rgba(240,90,93,0.32); }
   .tile.teal   { --t-bg: var(--teal);    --t-shade: var(--teal-dark);    --t-glow: rgba(20,184,166,0.32); }
 
+  /* צביעה בלבד — לבאדג'ים וצ'יפים שלא צריכים את הגיאומטריה של .tile */
+  .c-green  { background: var(--primary) !important; box-shadow: 0 3px 0 var(--primary-dark) !important; color: #fff !important; }
+  .c-violet { background: var(--violet)  !important; box-shadow: 0 3px 0 var(--violet-dark)  !important; color: #fff !important; }
+  .c-orange { background: var(--orange)  !important; box-shadow: 0 3px 0 var(--orange-dark)  !important; color: #fff !important; }
+  .c-blue   { background: var(--blue)    !important; box-shadow: 0 3px 0 var(--blue-dark)    !important; color: #fff !important; }
+  .c-amber  { background: var(--amber)   !important; box-shadow: 0 3px 0 var(--amber-dark)   !important; color: #fff !important; }
+  .c-rose   { background: var(--rose)    !important; box-shadow: 0 3px 0 var(--rose-dark)    !important; color: #fff !important; }
+  .c-teal   { background: var(--teal)    !important; box-shadow: 0 3px 0 var(--teal-dark)    !important; color: #fff !important; }
+
   /* באדג' ממוספר לשלבים (1,2,3) */
   .step-badge { width: 30px; height: 30px; border-radius: 10px; display: inline-flex; align-items: center; justify-content: center; color: #fff; font-weight: 800; font-size: 0.82em; flex-shrink: 0;
                 background: var(--t-bg, var(--primary)); box-shadow: 0 3px 0 var(--t-shade, var(--primary-dark)); }
@@ -398,6 +407,7 @@
   .sim-timer { font-weight: 800; font-variant-numeric: tabular-nums; color: #fff; background: var(--primary); font-size: 0.96em; padding: 7px 13px; border-radius: 12px; box-shadow: 0 3px 0 var(--primary-dark); }
   .sim-timer.low { background: var(--danger); box-shadow: 0 3px 0 var(--danger-dark); }
   .sim-secbadge { display: inline-block; font-size: 0.78em; font-weight: 800; color: #fff; background: var(--violet); padding: 6px 13px; border-radius: 20px; margin-bottom: 10px; box-shadow: 0 3px 0 var(--violet-dark); }
+  .sim-secbadge.neutral { background: var(--inset) !important; color: var(--muted) !important; box-shadow: none !important; }
   .sim-qcard { background: var(--card); border: none; border-radius: var(--radius); padding: 18px; box-shadow: var(--shadow); }
   /* printed-question cards go edge to edge so the scan is as large as possible */
   .sim-qcard.region { padding: 8px; margin: 0 -14px; border-radius: var(--radius-xs); }
@@ -514,7 +524,7 @@
   <div id="tab-sim" class="tab-content">
     <div id="simRoot"></div>
     <input type="file" id="simImportInput" accept="application/json,.json" style="display:none;" onchange="simImport(this)">
-    <input type="file" id="simPdfInput" accept="application/pdf,.pdf" style="display:none;" onchange="simImportPdf(this)">
+    <input type="file" id="simPdfInput" accept="application/pdf,.pdf" multiple style="display:none;" onchange="simImportPdf(this)">
   </div>
 
   <div id="tab-settings" class="tab-content">
@@ -718,6 +728,8 @@ function load() {
   if (!data.teacher.stats.topics) data.teacher.stats.topics = {};
   if (!data.sims || typeof data.sims !== 'object') data.sims = { exams: [] };
   if (!Array.isArray(data.sims.exams)) data.sims.exams = [];
+  if (!data.sims.qstats || typeof data.sims.qstats !== 'object') data.sims.qstats = {};
+  simMigrateTags();
   if (!Array.isArray(data.practice)) data.practice = [];
   document.getElementById('examDate').value = data.settings.examDate;
 }
@@ -2244,21 +2256,165 @@ function teacherDeleteMethod(id) {
 }
 
 /* ================= Simulations module ================= */
-const SIM = { view: 'home', mode: null, timerOn: false, run: null, result: null, timerId: null, remaining: 0, pdfBusy: false, pdfMsg: '', pCount: 10, vaultOpen: false };
+const SIM = { view: 'home', mode: null, timerOn: false, run: null, result: null, timerId: null, remaining: 0, pdfBusy: false, pdfMsg: '', pCount: 10, vaultOpen: false, pType: 'quant', pTopic: 'all', pDiff: 'all', pSmart: false, guideOpen: false };
 const SIM_CH_SIZE = 20;       // questions per simulated chapter
 const SIM_PER_Q = 60;  // seconds per question when the timer is on (1 min each)
 
+/* ================= Question taxonomy, classification & difficulty =================
+   Questions arrive from the PDF parser with no topic and no difficulty. Both are
+   derived here, on-device: the topic from the wording of the question, the
+   difficulty from how you actually perform on it. Nothing is sent anywhere. */
+
+const SIM_TOPICS = {
+  analogy:  { name: 'אנלוגיות',       type: 'verbal', tile: 'violet' },
+  sentence: { name: 'השלמת משפטים',   type: 'verbal', tile: 'blue'   },
+  reading:  { name: 'הבנת הנקרא',     type: 'verbal', tile: 'green'  },
+  logic:    { name: 'הסקה והיגיון',   type: 'verbal', tile: 'teal'   },
+  algebra:  { name: 'אלגברה',         type: 'quant',  tile: 'orange' },
+  problems: { name: 'בעיות',          type: 'quant',  tile: 'amber'  },
+  geometry: { name: 'גיאומטריה',      type: 'quant',  tile: 'rose'   },
+  charts:   { name: 'תרשימים',        type: 'quant',  tile: 'blue'   },
+  other:    { name: 'לא מסווג',       type: null,     tile: 'green'  }
+};
+function simTopicName(k) { return (SIM_TOPICS[k] || SIM_TOPICS.other).name; }
+function simTopicsFor(type) { return Object.keys(SIM_TOPICS).filter(k => SIM_TOPICS[k].type === type); }
+
+// sub-topic patterns, checked in order — first match wins
+const SIM_SUBS = {
+  geometry: [
+    ['משולשים',      /משולש/],
+    ['מעגלים',       /מעגל|קוטר|רדיוס|משיק|כורד/],
+    ['תלת ממד',      /תיבה|קובי|גליל|חרוט|נפח|פאה|מקצוע/],
+    ['מערכת צירים',  /מערכת הצירים|מערכת צירים|ציר ה|שיפוע|ראשית הצירים/],
+    ['מרובעים',      /מרובע|מלבן|ריבוע|טרפז|מקבילית|מעוין/],
+    ['מצולעים',      /מצולע|משושה|מחומש|מתומן/]
+  ],
+  problems: [
+    ['אחוזים',       /אחוז|%|הנחה|ריבית|התייקר|הוזל|מחיר.*עלה|רווח/],
+    ['תנועה',        /מהירות|קמ"ש|קמ״ש|כמ"ש|נסע|רכבת|מכונית|אופנוע|אופניים|הולך רגל|מרחק/],
+    ['הספק',         /פועל|פועלים|ברז|ברזים|מכונ|עובד|בונ|צביע|ימי עבודה|שעות עבודה/],
+    ['ממוצעים',      /ממוצע/],
+    ['הסתברות',      /הסתברות|סיכוי|אקראי|מגריל|בכד|קובייה הוגנת|מטבע/],
+    ['צירופים',      /בכמה דרכים|צירופ|אפשרויות שונות|סדר.*אפשר|לסדר/],
+    ['חפיפה',        /חופף|חפיפה/]
+  ],
+  algebra: [
+    ['חזקות ושורשים',/חזקה|בחזקת|שורש ריבועי|שורש של|\^/],
+    ['שברים',        /שבר|מונה|מכנה/],
+    ['משוואות',      /משוואה|משוואות|נעלם/],
+    ['אי שוויונות',  /אי שוויון|אי-שוויון|גדול מ|קטן מ/],
+    ['ערך מוחלט',    /ערך מוחלט/],
+    ['שלמים ושארית', /שארית|מתחלק|ראשוני|זוגי|אי זוגי|אי-זוגי/]
+  ]
+};
+function simSubOf(topic, txt) {
+  const rules = SIM_SUBS[topic]; if (!rules) return '';
+  for (const [name, re] of rules) if (re.test(txt)) return name;
+  return '';
+}
+
+/* Classifies one question. `txt` is the verbal question text, or for a
+   quantitative question the ctext the parser kept for exactly this purpose
+   (the displayed content there is a crop of the printed page). */
+function simClassify(q, type) {
+  const txt = (q.ctext || q.text || '');
+  const opts = q.options || [];
+  if (type === 'verbal') {
+    if (/^\[קטע קריאה\]/.test(txt)) return { topic: 'reading', sub: '' };
+    // an analogy is a pair of words joined by a colon, in the stem and in every option
+    const colonOpts = opts.filter(o => /\S\s*:\s*\S/.test(o)).length;
+    if (colonOpts >= 3 && txt.length < 60) return { topic: 'analogy', sub: '' };
+    // sentence completion prints the gap as a run of underscores, dashes or dots
+    if (/_{3,}|-\s?-\s?-|\.{4,}|–{2,}/.test(txt)) return { topic: 'sentence', sub: '' };
+    return { topic: 'logic', sub: '' };
+  }
+  if (q.shared || /תרשים|גרף|לפי הנתונים ש|העמודות|הדיאגרמה|הטבלה שלפניכם/.test(txt)) return { topic: 'charts', sub: '' };
+  if (/משולש|מרובע|מלבן|ריבוע|מעגל|זווית|קוטר|רדיוס|היקף|טרפז|מקבילית|מעוין|מצולע|צלע|אנך|משיק|תיבה|קובי|גליל|חרוט|נפח|שטח ה/.test(txt))
+    return { topic: 'geometry', sub: simSubOf('geometry', txt) };
+  if (/אחוז|%|מהירות|קמ"ש|קמ״ש|ממוצע|הסתברות|סיכוי|בכמה דרכים|פועל|ברז|הנחה|ריבית|רכבת|מגריל/.test(txt))
+    return { topic: 'problems', sub: simSubOf('problems', txt) };
+  return { topic: 'algebra', sub: simSubOf('algebra', txt) };
+}
+
+// djb2 — stable across re-imports of the same PDF, so your history survives
+function simHash(str) {
+  let h = 5381;
+  for (let i = 0; i < str.length; i++) h = ((h * 33) ^ str.charCodeAt(i)) >>> 0;
+  return h.toString(36);
+}
+function simQid(examName, secName, q) {
+  return simHash(examName + '|' + secName + '|' + (q.num || 0) + '|' + q.correct + '|' + String(q.text).slice(0, 40));
+}
+
+/* ---- difficulty ----
+   Once you have answered a question a few times your own success rate is the
+   only difficulty rating that matters, so it wins. Before that, the position of
+   the question inside its chapter is used as a rough prior — PET chapters run
+   broadly from easier to harder — and is shown as an estimate. */
+const SIM_DIFFS = { easy: 'קל', med: 'בינוני', hard: 'קשה' };
+function simQStats() { return (data.sims && data.sims.qstats) || {}; }
+function simDiffOf(q) {
+  const st = simQStats()[q.qid];
+  if (st && st.n >= 3) { const r = st.c / st.n; return r < 0.4 ? 'hard' : (r < 0.75 ? 'med' : 'easy'); }
+  const n = q.num || 0;
+  if (!n) return 'med';
+  return n <= 7 ? 'easy' : (n <= 15 ? 'med' : 'hard');
+}
+function simIsMeasured(q) { const st = simQStats()[q.qid]; return !!(st && st.n >= 3); }
+// weakest first: unseen questions sit in the middle so they still get shown
+function simWeakness(q) {
+  const st = simQStats()[q.qid];
+  if (!st || !st.n) return 0.5;
+  return 1 - (st.c / st.n);
+}
+function simRecordAnswer(q, ok) {
+  if (!q.qid) return;
+  if (!data.sims.qstats) data.sims.qstats = {};
+  const st = data.sims.qstats[q.qid] || { n: 0, c: 0 };
+  st.n++; if (ok) st.c++;
+  data.sims.qstats[q.qid] = st;
+}
 function simInit() { SIM.view = 'home'; simStopTimer(); simRender(); }
 function simExams() { return (data.sims && data.sims.exams) || []; }
+// Exams imported before topics existed carry no tags; classify them once, in place.
+function simMigrateTags() {
+  let changed = 0;
+  simExams().forEach(ex => (ex.sections || []).forEach(sec => (sec.questions || []).forEach(q => {
+    if (!q.topic) { const c = simClassify(q, sec.type); q.topic = c.topic; q.sub = c.sub; changed++; }
+    if (!q.qid) { q.qid = simQid(ex.name || 'מבחן', sec.name || sec.type, q); changed++; }
+  })));
+  if (changed) save();
+}
+// Re-tags a stored question after you correct the automatic classification.
+function simRetag(qid, topic) {
+  if (!SIM_TOPICS[topic]) return;
+  simExams().forEach(ex => (ex.sections || []).forEach(sec => (sec.questions || []).forEach(q => {
+    if (q.qid === qid) { q.topic = topic; q.sub = simSubOf(topic, q.ctext || q.text || ''); }
+  })));
+  save(); toast('הסיווג עודכן ל' + simTopicName(topic));
+}
 function simTypeName(t) { return t === 'quant' ? 'כמותי' : 'מילולי'; }
 function simCountQ(ex) { return ex.sections.reduce((n, s) => n + s.questions.length, 0); }
-function simPool(type) {
+function simPool(type, topic, diff) {
   const out = [];
-  simExams().forEach(ex => ex.sections.forEach(s => { if (s.type === type) s.questions.forEach(q => out.push(q)); }));
+  simExams().forEach(ex => ex.sections.forEach(s => {
+    if (type && s.type !== type) return;
+    s.questions.forEach(q => {
+      if (topic && topic !== 'all' && q.topic !== topic) return;
+      if (diff && diff !== 'all' && simDiffOf(q) !== diff) return;
+      out.push(q);
+    });
+  }));
   return out;
 }
+// how many questions sit under each topic of a section type, for the chips
+function simTopicCounts(type, diff) {
+  const c = {};
+  simPool(type, 'all', diff).forEach(q => { c[q.topic || 'other'] = (c[q.topic || 'other'] || 0) + 1; });
+  return c;
+}
 function simShuffle(a) { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
-function simCloneQ(q) { return { text: q.text, image: q.image || null, region: q.region || null, shared: q.shared || null, examId: q.examId || null, options: q.options.slice(), correct: q.correct, chosen: null }; }
+function simCloneQ(q) { return { text: q.text, num: q.num || 0, qid: q.qid || null, topic: q.topic || 'other', sub: q.sub || '', image: q.image || null, region: q.region || null, shared: q.shared || null, examId: q.examId || null, options: q.options.slice(), correct: q.correct, chosen: null }; }
 
 function simRender() {
   const root = document.getElementById('simRoot');
@@ -2273,7 +2429,22 @@ function simModeCard(mode, title, sub, enabled, icon) {
     '<div class="sim-mode-ic">' + (icon || '') + '</div>' +
     '<div><div class="sim-mode-title">' + title + '</div><div class="sim-mode-sub">' + sub + (enabled ? '' : ' (אין מספיק שאלות)') + '</div></div></button>';
 }
+/* The practice exams NITE publishes free for candidates. Listed by name only —
+   the files are downloaded by you from the official page and parsed on this
+   device; nothing here ships with the app. */
+const SIM_OFFICIAL = [
+  ['חורף', 2025], ['קיץ', 2025], ['חורף', 2024], ['קיץ', 2024],
+  ['חורף', 2023], ['אביב', 2023], ['קיץ', 2023],
+  ['חורף', 2022], ['אביב', 2022], ['קיץ', 2022],
+  ['אביב', 2021], ['קיץ', 2021], ['סתיו', 2021],
+  ['חורף', 2020], ['אביב', 2020], ['קיץ', 2020], ['סתיו', 2020],
+  ['חורף', 2019], ['אביב', 2019]
+];
+const SIM_NITE_URL = 'https://www.nite.org.il/psychometric-entrance-test/preparation/hebrew-practice-tests/';
+function simOfficialName(o) { return 'מועד ' + o[0] + ' ' + o[1]; }
+function simHaveExam(name) { return simExams().some(e => (e.name || '').trim() === name); }
 function simToggleVault() { SIM.vaultOpen = !SIM.vaultOpen; simRenderHome(); }
+function simToggleGuide() { SIM.guideOpen = !SIM.guideOpen; simRenderHome(); }
 function simRenderHome() {
   const root = document.getElementById('simRoot');
   if (SIM.pdfBusy) {
@@ -2298,16 +2469,41 @@ function simRenderHome() {
         '<div class="sim-exam-meta">' + ex.sections.length + ' פרקים · ' + simCountQ(ex) + ' שאלות' + (ex.writing ? ' · חיבור' : '') + '</div></div>' +
         '<button class="tc-li-del" onclick="simDeleteExam(\'' + ex.id + '\')"><svg viewBox="0 0 24 24" fill="none"><path d="M5 7h14M10 7V5h4v2M6 7l1 12h10l1-12" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div>';
     });
-    html += '<button class="btn" style="margin-top:12px;" onclick="document.getElementById(\'simPdfInput\').click()">📄 ייבוא מבחן מקובץ PDF</button>';
+    html += '<button class="btn" style="margin-top:12px;" onclick="document.getElementById(\'simPdfInput\').click()">📄 ייבוא מבחנים מקובצי PDF</button>';
+    html += '<div class="sim-zoomhint" style="margin-top:8px;">אפשר לבחור כמה קבצים בבת אחת</div>';
     html += '<div class="sim-row" style="margin-top:10px;">' +
       '<button class="btn outline" onclick="document.getElementById(\'simImportInput\').click()">ייבוא JSON</button>' +
       '<button class="btn outline" onclick="simExport()">ייצוא</button></div>';
+
+    // progress against the official free practice exams
+    const have = SIM_OFFICIAL.filter(o => simHaveExam(simOfficialName(o))).length;
+    const chev2 = '<svg viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+    html += '<button class="sim-vault-toggle' + (SIM.guideOpen ? ' open' : '') + '" onclick="simToggleGuide()">' +
+      '<span>המבחנים הרשמיים של המרכז הארצי (' + have + '/' + SIM_OFFICIAL.length + ')</span>' + chev2 + '</button>';
+    if (SIM.guideOpen) {
+      html += '<div class="info-card" style="margin-bottom:12px;">' +
+        '<div class="hint" style="margin-bottom:12px;line-height:1.65;">המרכז הארצי מפרסם ' + SIM_OFFICIAL.length +
+        ' בחינות להתנסות בחינם, כל אחת עם מפתח תשובות רשמי. הורד אותן מהעמוד הרשמי וגרור את כולן לייבוא למעלה — ' +
+        'הן מנותחות כאן במכשיר ונשמרות רק בו.</div>' +
+        '<a class="btn" style="display:block;text-align:center;text-decoration:none;box-sizing:border-box;" href="' + SIM_NITE_URL + '" target="_blank" rel="noopener">פתיחת העמוד הרשמי ←</a>' +
+        '<div class="vc-units" style="padding-top:14px;padding-bottom:2px;flex-wrap:wrap;overflow:visible;">';
+      SIM_OFFICIAL.forEach(o => {
+        const nm = simOfficialName(o), got = simHaveExam(nm);
+        html += '<span class="vc-chip' + (got ? ' active' : '') + '" style="cursor:default;box-shadow:none;">' +
+          (got ? '✓ ' : '') + escapeHtml(o[0] + ' ' + o[1]) + '</span>';
+      });
+      html += '</div></div>';
+    }
   }
   root.innerHTML = html;
 }
 function simSetup(mode) { SIM.mode = mode; SIM.view = 'setup'; simRender(); }
 function simToggleTimer(el) { SIM.timerOn = !!el.checked; }
 function simSetCount(n) { SIM.pCount = n; simRender(); }
+function simSetPType(t) { SIM.pType = t; SIM.pTopic = 'all'; simRender(); }
+function simSetPTopic(k) { SIM.pTopic = k; simRender(); }
+function simSetPDiff(d) { SIM.pDiff = d; if (SIM.pTopic !== 'all' && !simPool(SIM.pType, SIM.pTopic, d).length) SIM.pTopic = 'all'; simRender(); }
+function simSetSmart(el) { SIM.pSmart = !!el.checked; }
 function simRenderSetup() {
   const root = document.getElementById('simRoot');
   const titles = { full: 'מבחן מלא', practice: 'תרגול' };
@@ -2326,16 +2522,52 @@ function simRenderSetup() {
       '<div class="sim-mode-title">מבחן מעורבב</div>' +
       '<div class="sim-mode-sub">2 פרקי כמותי + 2 פרקי מילולי, מערבוב כל המבחנים (' + nQ + ' כמותי · ' + nV + ' מילולי).</div></button>';
   } else {
-    const nQ = simPool('quant').length, nV = simPool('verbal').length;
-    const counts = [5, 10, 20, 30];
-    html += '<div class="sim-section-title">כמות שאלות</div><div class="vc-seg accent" style="margin-bottom:4px;">';
-    counts.forEach(n => { html += '<button class="' + (SIM.pCount === n ? 'active' : '') + '" onclick="simSetCount(' + n + ')">' + n + '</button>'; });
+    const step = n => '<span class="step-badge c-' + n[1] + '">' + n[0] + '</span> ';
+    // 1 — section type
+    html += '<div class="sim-section-title">' + step(['1', 'green']) + 'סוג הפרק</div>';
+    html += '<div class="vc-seg" style="margin-bottom:4px;">';
+    [['quant', 'כמותי'], ['verbal', 'מילולי']].forEach(([t, lbl]) => {
+      const n = simPool(t).length;
+      html += '<button class="' + (SIM.pType === t ? 'active' : '') + '" onclick="simSetPType(\'' + t + '\')">' + lbl + ' <span style="opacity:.6;font-size:.85em">' + n + '</span></button>';
+    });
     html += '</div>';
-    html += '<div class="sim-section-title">סוג הפרק</div>';
-    html += '<button class="sim-mode" ' + (nQ ? 'onclick="simStartPractice(\'quant\')"' : 'disabled') + '><div class="sim-mode-title">כמותי</div>' +
-      '<div class="sim-mode-sub">' + Math.min(SIM.pCount, nQ) + ' שאלות מתוך ' + nQ + ' במאגר</div></button>';
-    html += '<button class="sim-mode" ' + (nV ? 'onclick="simStartPractice(\'verbal\')"' : 'disabled') + '><div class="sim-mode-title">מילולי</div>' +
-      '<div class="sim-mode-sub">' + Math.min(SIM.pCount, nV) + ' שאלות מתוך ' + nV + ' במאגר</div></button>';
+
+    // 2 — topic
+    const counts = simTopicCounts(SIM.pType, SIM.pDiff);
+    const allN = simPool(SIM.pType, 'all', SIM.pDiff).length;
+    html += '<div class="sim-section-title">' + step(['2', 'violet']) + 'נושא</div>';
+    html += '<div class="vc-units" style="padding-bottom:10px;flex-wrap:wrap;overflow:visible;">';
+    html += '<button class="vc-chip' + (SIM.pTopic === 'all' ? ' active' : '') + '" onclick="simSetPTopic(\'all\')">הכל <span class="vc-chip-cnt">' + allN + '</span></button>';
+    simTopicsFor(SIM.pType).forEach(k => {
+      const n = counts[k] || 0;
+      html += '<button class="vc-chip' + (SIM.pTopic === k ? ' active' : '') + '"' + (n ? '' : ' disabled style="opacity:.45"') +
+        ' onclick="simSetPTopic(\'' + k + '\')">' + simTopicName(k) + ' <span class="vc-chip-cnt">' + n + '</span></button>';
+    });
+    if (counts.other) html += '<button class="vc-chip' + (SIM.pTopic === 'other' ? ' active' : '') + '" onclick="simSetPTopic(\'other\')">לא מסווג <span class="vc-chip-cnt">' + counts.other + '</span></button>';
+    html += '</div>';
+
+    // 3 — difficulty
+    html += '<div class="sim-section-title">' + step(['3', 'amber']) + 'רמת קושי</div>';
+    html += '<div class="vc-seg" style="margin-bottom:4px;">';
+    [['all', 'הכל'], ['easy', 'קל'], ['med', 'בינוני'], ['hard', 'קשה']].forEach(([d, lbl]) => {
+      html += '<button class="' + (SIM.pDiff === d ? 'active' : '') + '" onclick="simSetPDiff(\'' + d + '\')">' + lbl + '</button>';
+    });
+    html += '</div>';
+
+    // 4 — how many
+    html += '<div class="sim-section-title">' + step(['4', 'blue']) + 'כמות שאלות</div><div class="vc-seg" style="margin-bottom:4px;">';
+    [5, 10, 20, 30].forEach(n => { html += '<button class="' + (SIM.pCount === n ? 'active' : '') + '" onclick="simSetCount(' + n + ')">' + n + '</button>'; });
+    html += '</div>';
+
+    html += '<div class="sim-toggle" style="margin-top:14px;"><span>תרגול חכם — קודם מה שחלש</span>' +
+      '<label class="sim-switch"><input type="checkbox" ' + (SIM.pSmart ? 'checked' : '') + ' onchange="simSetSmart(this)"><span class="sim-slider"></span></label></div>';
+
+    const avail = simPool(SIM.pType, SIM.pTopic, SIM.pDiff).length;
+    const label = (SIM.pTopic === 'all' ? simTypeName(SIM.pType) : simTopicName(SIM.pTopic)) +
+      (SIM.pDiff === 'all' ? '' : ' · ' + SIM_DIFFS[SIM.pDiff]);
+    html += '<button class="btn" style="margin-top:14px;" ' + (avail ? 'onclick="simStartPractice()"' : 'disabled') + '>' +
+      (avail ? 'התחלת תרגול · ' + Math.min(SIM.pCount, avail) + ' שאלות' : 'אין שאלות שמתאימות לסינון') + '</button>';
+    html += '<div class="sim-zoomhint" style="margin-top:8px;">' + escapeHtml(label) + ' — ' + avail + ' שאלות זמינות במאגר</div>';
   }
   root.innerHTML = html;
 }
@@ -2359,9 +2591,16 @@ function simStartMixed() {
   for (let c = 0; c < 2; c++) { const chunk = v.slice(c * SIM_CH_SIZE, (c + 1) * SIM_CH_SIZE); if (chunk.length) sections.push({ type: 'verbal', name: 'מילולי ' + (c + 1), questions: chunk }); }
   simBegin({ title: 'מבחן מסומלץ', writing: '', writingText: '', sections: sections });
 }
-function simStartPractice(type) {
-  const pool = simShuffle(simPool(type)).slice(0, SIM.pCount).map(simCloneQ);
-  simBegin({ title: 'תרגול ' + simTypeName(type), practice: true, writing: '', writingText: '', sections: [{ type: type, name: simTypeName(type), questions: pool }] });
+function simStartPractice(type, topic, diff) {
+  const t = type || SIM.pType, tp = topic || SIM.pTopic, df = diff || SIM.pDiff;
+  let pool = simShuffle(simPool(t, tp, df));
+  // smart practice puts the questions you get wrong most at the front; the shuffle
+  // above still breaks ties, so a session is never the same list twice
+  if (SIM.pSmart) pool = pool.slice().sort((a, b) => simWeakness(b) - simWeakness(a));
+  pool = pool.slice(0, SIM.pCount).map(simCloneQ);
+  const name = tp === 'all' ? simTypeName(t) : simTopicName(tp);
+  simBegin({ title: 'תרגול ' + name + (df === 'all' ? '' : ' · ' + SIM_DIFFS[df]), practice: true, writing: '', writingText: '',
+    sections: [{ type: t, name: name, questions: pool }] });
 }
 function simCurSec() { return SIM.run.sections[SIM.run.secIdx]; }
 function simCurQ() { return simCurSec().questions[SIM.run.qIdx]; }
@@ -2369,7 +2608,17 @@ function simRenderRun() {
   const root = document.getElementById('simRoot');
   const sec = simCurSec(), q = simCurQ(), total = sec.questions.length, idx = SIM.run.qIdx;
   const pct = Math.round((idx / total) * 100);
-  let html = '<div class="sim-secbadge">' + escapeHtml(sec.name) + ' · פרק ' + (SIM.run.secIdx + 1) + '/' + SIM.run.sections.length + '</div>';
+  // in practice the topic is context you want; in a timed exam it is noise
+  const tinfo = (SIM.run.practice && q.topic && q.topic !== 'other') ? SIM_TOPICS[q.topic] : null;
+  let html = '';
+  if (tinfo && sec.name === tinfo.name) {
+    // practising one topic — the section already says it, so a single badge does
+    html += '<div class="sim-secbadge c-' + tinfo.tile + '">' + escapeHtml(tinfo.name + (q.sub ? ' · ' + q.sub : '')) + '</div>';
+  } else {
+    html += '<div class="sim-secbadge' + (tinfo ? ' neutral' : '') + '">' + escapeHtml(sec.name) +
+      (SIM.run.practice ? '' : ' · פרק ' + (SIM.run.secIdx + 1) + '/' + SIM.run.sections.length) + '</div>';
+    if (tinfo) html += '<div class="sim-secbadge c-' + tinfo.tile + '" style="margin-right:6px;">' + escapeHtml(tinfo.name + (q.sub ? ' · ' + q.sub : '')) + '</div>';
+  }
   html += '<div class="sim-runbar">';
   if (SIM.timerOn) html += '<span class="sim-timer' + (SIM.remaining <= 60 ? ' low' : '') + '" id="simTimer">' + simFmt(SIM.remaining) + '</span>';
   html += '<div class="vc-progress-track"><div class="vc-progress-fill" style="width:' + pct + '%"></div></div>';
@@ -2457,12 +2706,20 @@ function simFinish() {
   simStopTimer();
   const byType = { quant: { c: 0, t: 0 }, verbal: { c: 0, t: 0 } };
   const mistakes = [];
+  const byTopic = {};
   SIM.run.sections.forEach(sec => sec.questions.forEach(q => {
     byType[sec.type].t++;
-    if (q.chosen === q.correct) byType[sec.type].c++;
-    else mistakes.push({ section: sec.name, text: q.text, chosen: q.chosen, correct: q.correct, options: q.options, byNum: !!q.region });
+    const ok = q.chosen === q.correct;
+    if (ok) byType[sec.type].c++;
+    else mistakes.push({ section: sec.name, text: q.text, qid: q.qid, type: sec.type, topic: q.topic, sub: q.sub, chosen: q.chosen, correct: q.correct, options: q.options, byNum: !!q.region });
+    const tk = q.topic || 'other';
+    byTopic[tk] = byTopic[tk] || { c: 0, t: 0 };
+    byTopic[tk].t++; if (ok) byTopic[tk].c++;
+    // an unanswered question is not evidence about difficulty, so it is not counted
+    if (q.chosen != null) simRecordAnswer(q, ok);
   }));
-  SIM.result = { byType: byType, mistakes: mistakes, saved: false };
+  save();
+  SIM.result = { byType: byType, byTopic: byTopic, mistakes: mistakes, saved: false };
   // practice runs are tracked on their own; only full exams offer a weighted score
   if (SIM.run.practice) {
     const t = byType.quant.t ? 'quant' : 'verbal';
@@ -2498,6 +2755,13 @@ function simRenderResults() {
   }
   const secRow = (label, o) => o.t ? '<div class="sim-res-sec"><span>' + label + '</span><div class="topic-bar"><div class="topic-bar-fill" style="width:' + Math.round(o.c / o.t * 100) + '%"></div></div><span style="font-weight:700">' + o.c + '/' + o.t + ' · ' + Math.round(o.c / o.t * 100) + '%</span></div>' : '';
   html += '<div class="info-card">' + secRow('כמותי', bt.quant) + secRow('מילולי', bt.verbal) + '</div>';
+  const topicKeys = Object.keys(r.byTopic || {}).filter(k => r.byTopic[k].t);
+  if (topicKeys.length > 1) {
+    html += '<div class="sim-section-title">לפי נושא</div><div class="info-card">';
+    topicKeys.sort((a, b) => (r.byTopic[a].c / r.byTopic[a].t) - (r.byTopic[b].c / r.byTopic[b].t))
+      .forEach(k => { html += secRow(simTopicName(k), r.byTopic[k]); });
+    html += '</div>';
+  }
   if (practice) html += '<div class="sim-empty" style="padding:14px;">✓ נשמר בתובנות התרגול בטאב ציונים</div>';
   else if (!r.saved) html += '<button class="btn" style="margin-top:4px;" onclick="simSaveResult()">שמירת התוצאה בטאב ציונים</button>';
   else html += '<div class="sim-empty" style="padding:14px;">✓ נשמר בטאב ציונים</div>';
@@ -2514,9 +2778,18 @@ function simRenderResults() {
   else r.mistakes.forEach(m => {
     const chosenTxt = m.chosen == null ? 'לא נענתה' : 'בחרת: ' + (m.byNum ? 'תשובה ' + (m.chosen + 1) : escapeHtml(m.options[m.chosen]));
     const correctTxt = m.byNum ? 'תשובה ' + (m.correct + 1) : escapeHtml(m.options[m.correct]);
+    let tagSel = '';
+    if (m.qid && m.type) {
+      tagSel = '<select onchange="simRetag(\'' + m.qid + '\', this.value)" ' +
+        'style="font-family:inherit;font-size:0.78em;font-weight:800;color:var(--muted);background:var(--inset);border:none;border-radius:9px;padding:5px 9px;cursor:pointer;">';
+      simTopicsFor(m.type).concat(['other']).forEach(k => {
+        tagSel += '<option value="' + k + '"' + ((m.topic || 'other') === k ? ' selected' : '') + '>' + simTopicName(k) + (m.sub && k === m.topic ? ' · ' + m.sub : '') + '</option>';
+      });
+      tagSel += '</select>';
+    }
     html += '<div class="info-card" style="margin-bottom:8px;"><div class="sim-mode-sub" style="color:var(--text);margin-bottom:6px;">' + escapeHtml(m.section + ' · ' + m.text) + '</div>' +
       '<div style="font-size:0.85em;color:var(--danger);">' + chosenTxt + '</div>' +
-      '<div style="font-size:0.85em;color:var(--success);">התשובה הנכונה: ' + correctTxt + '</div></div>';
+      '<div style="font-size:0.85em;color:var(--success);margin-bottom:8px;">התשובה הנכונה: ' + correctTxt + '</div>' + tagSel + '</div>';
   });
   html += '<button class="btn outline" style="margin-top:14px;" onclick="simInit()">חזרה לסימולציות</button>';
   root.innerHTML = html;
@@ -2564,8 +2837,16 @@ function simNormalizeExam(ex) {
       // region of the original page (answers are then picked by number)
       questions: (s.questions || []).filter(q => q && q.text && Number.isInteger(q.correct) && q.correct >= 0 && q.correct <= 3 &&
           (q.region || (Array.isArray(q.options) && q.options.length >= 2 && q.correct < q.options.length)))
-        .map(q => ({ text: String(q.text), image: q.image || null, region: q.region || null, shared: q.shared || null, examId: q.examId || ex.id || null,
-          options: Array.isArray(q.options) ? q.options.map(String) : [], correct: q.correct }))
+        .map(q => {
+          const out = { text: String(q.text), num: q.num || 0, ctext: q.ctext || '', image: q.image || null, region: q.region || null,
+            shared: q.shared || null, examId: q.examId || ex.id || null,
+            options: Array.isArray(q.options) ? q.options.map(String) : [], correct: q.correct };
+          // a topic already on the question (a re-import, or one you re-tagged) is kept
+          const cls = (q.topic && SIM_TOPICS[q.topic]) ? { topic: q.topic, sub: q.sub || '' } : simClassify(out, type);
+          out.topic = cls.topic; out.sub = cls.sub;
+          out.qid = q.qid || simQid(ex.name || 'מבחן', s.name || type, out);
+          return out;
+        })
     };
   }).filter(s => s && s.questions.length);
   if (!sections.length) return null;
@@ -2840,7 +3121,9 @@ function simParseExam(pages, fallbackName, examId) {
         else { rx0 = Math.max(pg ? pg.x0 : 0, rx0 - 42); rx1 = Math.min(pg ? pg.x1 : rx1, rx1 + 6); }
         let shared = null;
         if (q.shared) { const sp = pages.find(x => x.page === q.shared.page); shared = { page: q.shared.page, y0: q.shared.y0, y1: q.shared.y1, x0: sp ? sp.x0 : 0, x1: sp ? sp.x1 : 0 }; }
-        out.push({ text: 'שאלה ' + q.num, examId: examId, options: [], correct: correct, shared: shared,
+        const ctext = (q.text.join(' ') + ' ' + [1, 2, 3, 4].map(n => (q.opt[n] || []).join(' ')).join(' '))
+          .replace(/\s+/g, ' ').trim().slice(0, 400);
+        out.push({ text: 'שאלה ' + q.num, num: q.num, ctext: ctext, examId: examId, options: [], correct: correct, shared: shared,
           region: { page: q.page, y0: y0, y1: y1, x0: rx0, x1: rx1 } });
         return;
       }
@@ -2849,7 +3132,7 @@ function simParseExam(pages, fallbackName, examId) {
       let text = q.text.join(' ').replace(/\s+/g, ' ').trim();
       if (!text || opts.some(o => !o)) return;
       if (q.passage) text = '[קטע קריאה]\n' + q.passage + '\n\n' + text;
-      out.push({ text: text, options: opts, correct: correct });
+      out.push({ text: text, num: q.num, options: opts, correct: correct });
     });
     if (out.length) sections.push({ type: type, name: mk.name, questions: out });
   }
@@ -2862,32 +3145,59 @@ function simParseExam(pages, fallbackName, examId) {
   return { exam: { id: examId, name: title || fallbackName || 'מבחן מיובא', writing: writing, sections: sections }, got: got, expected: expected };
 }
 function simImportPdf(input) {
-  const f = input.files && input.files[0]; input.value = '';
-  if (!f) return;
-  if (f.type !== 'application/pdf' && !/\.pdf$/i.test(f.name)) { toast('בחר קובץ PDF'); return; }
-  const rd = new FileReader();
-  rd.onload = e => simExtractPdf(new Uint8Array(e.target.result), f.name.replace(/\.pdf$/i, ''));
-  rd.onerror = () => toast('שגיאה בקריאת הקובץ');
-  rd.readAsArrayBuffer(f);
+  const files = Array.from(input.files || []); input.value = '';
+  const pdfs = files.filter(f => f.type === 'application/pdf' || /\.pdf$/i.test(f.name));
+  if (!pdfs.length) { toast('בחר קובץ PDF'); return; }
+  simImportQueue(pdfs);
 }
-async function simExtractPdf(buf, name) {
-  SIM.pdfBusy = true; SIM.pdfMsg = 'טוען מנוע PDF...'; SIM.view = 'home'; simRender();
+const simReadFile = f => new Promise((res, rej) => {
+  const rd = new FileReader();
+  rd.onload = e => res(new Uint8Array(e.target.result));
+  rd.onerror = () => rej(new Error('שגיאה בקריאת הקובץ'));
+  rd.readAsArrayBuffer(f);
+});
+// Imports a whole batch one file at a time. Each exam is saved as soon as it is
+// parsed, so a failure late in the queue never loses the ones already done.
+async function simImportQueue(files) {
+  let ok = 0, failed = 0, questions = 0;
+  for (let i = 0; i < files.length; i++) {
+    const f = files[i];
+    const prefix = files.length > 1 ? 'קובץ ' + (i + 1) + '/' + files.length + ' · ' : '';
+    try {
+      const buf = await simReadFile(f);
+      const got = await simExtractPdf(buf, f.name.replace(/\.pdf$/i, ''), prefix, true);
+      if (got) { ok++; questions += got; } else failed++;
+    } catch (e) { failed++; }
+  }
+  SIM.pdfBusy = false; SIM.pdfMsg = ''; simRender();
+  if (files.length === 1) return;
+  toast(ok + ' מבחנים · ' + questions + ' שאלות' + (failed ? ' · ' + failed + ' נכשלו' : ''));
+}
+async function simExtractPdf(buf, name, prefix, quiet) {
+  prefix = prefix || '';
+  SIM.pdfBusy = true; SIM.pdfMsg = prefix + 'טוען מנוע PDF...'; SIM.view = 'home'; simRender();
   try {
-    const examId = 'pdf_' + Date.now();
+    const examId = 'pdf_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
     const pages = await simPdfPages(buf);
-    SIM.pdfMsg = 'מנתח שאלות...'; simRender();
+    SIM.pdfMsg = prefix + 'מנתח שאלות...'; simRender();
     await new Promise(r => setTimeout(r));
     const res = simParseExam(pages, name, examId);
-    if (!res.got) { toast('לא זוהו שאלות בקובץ. ודא שזה מבחן פסיכומטרי מלא עם מפתח תשובות.'); SIM.pdfBusy = false; SIM.pdfMsg = ''; simRender(); return; }
-    try { await simPdfSave(examId, buf); } catch (e) { toast('אזהרה: לא ניתן היה לשמור את הקובץ להצגת תרשימים'); }
+    if (!res.got) {
+      if (!quiet) { toast('לא זוהו שאלות בקובץ. ודא שזה מבחן פסיכומטרי מלא עם מפתח תשובות.'); SIM.pdfBusy = false; SIM.pdfMsg = ''; simRender(); }
+      return 0;
+    }
+    try { await simPdfSave(examId, buf); } catch (e) { if (!quiet) toast('אזהרה: לא ניתן היה לשמור את הקובץ להצגת תרשימים'); }
     simImportExams([res.exam]);
-    SIM.pdfBusy = false; SIM.pdfMsg = ''; simRender();
-    let msg = 'יובאו ' + res.got + ' שאלות';
-    if (res.expected > res.got) msg += ' · ' + (res.expected - res.got) + ' לא חולצו';
-    toast(msg);
+    if (!quiet) {
+      SIM.pdfBusy = false; SIM.pdfMsg = ''; simRender();
+      let msg = 'יובאו ' + res.got + ' שאלות';
+      if (res.expected > res.got) msg += ' · ' + (res.expected - res.got) + ' לא חולצו';
+      toast(msg);
+    }
+    return res.got;
   } catch (err) {
-    SIM.pdfBusy = false; SIM.pdfMsg = ''; simRender();
-    toast('שגיאה בקריאת ה-PDF: ' + (err && err.message ? err.message : 'לא ידוע'));
+    if (!quiet) { SIM.pdfBusy = false; SIM.pdfMsg = ''; simRender(); toast('שגיאה בקריאת ה-PDF: ' + (err && err.message ? err.message : 'לא ידוע')); }
+    return 0;
   }
 }
 function simImportExams(arr) {
@@ -2908,6 +3218,15 @@ function simImport(input) {
     try { parsed = JSON.parse(e.target.result); } catch (err) { toast('שגיאה: הקובץ אינו JSON תקין'); return; }
     const arr = Array.isArray(parsed) ? parsed : (parsed.exams || []);
     if (!Array.isArray(arr) || !arr.length) { toast('הקובץ לא מכיל מבחנים'); return; }
+    // answer history travels with the bank, so difficulty survives a device move
+    if (parsed && parsed.qstats && typeof parsed.qstats === 'object') {
+      if (!data.sims.qstats) data.sims.qstats = {};
+      Object.keys(parsed.qstats).forEach(k => {
+        const inc = parsed.qstats[k], cur = data.sims.qstats[k];
+        if (!inc || typeof inc.n !== 'number') return;
+        data.sims.qstats[k] = (cur && cur.n > inc.n) ? cur : inc;
+      });
+    }
     const added = simImportExams(arr);
     toast(added ? (added + ' מבחנים יובאו') : 'לא נמצאו מבחנים תקינים');
   };
@@ -2915,7 +3234,7 @@ function simImport(input) {
 }
 function simExport() {
   if (!simExams().length) { toast('אין מבחנים לייצוא'); return; }
-  const blob = new Blob([JSON.stringify({ exams: simExams() }, null, 2)], { type: 'application/json' });
+  const blob = new Blob([JSON.stringify({ exams: simExams(), qstats: simQStats() }, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a'); a.href = url; a.download = 'simulations.json'; a.click();
   URL.revokeObjectURL(url);
