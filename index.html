@@ -1125,12 +1125,34 @@ function saveSettings() {
   data.settings.examDate = document.getElementById('examDate').value;
   save(); renderCountdown(); toast('נשמר');
 }
+// A <a download> click silently does nothing on an installed (home-screen)
+// iOS PWA — there is no browser chrome to catch the download. The Web Share
+// sheet is the one reliable way to get "Save to Files" out of that context,
+// so it is tried first; a real download link is the fallback everywhere else.
+async function downloadOrShare(filename, mimeType, content, successMsg) {
+  const blob = new Blob([content], { type: mimeType });
+  if (navigator.canShare && navigator.share) {
+    try {
+      const file = new File([blob], filename, { type: mimeType });
+      if (navigator.canShare({ files: [file] })) {
+        await navigator.share({ files: [file] });
+        toast(successMsg);
+        return;
+      }
+    } catch (e) {
+      if (e && e.name === 'AbortError') return; // user closed the share sheet — not a failure
+    }
+  }
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename; a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  toast(successMsg);
+}
 function exportData() {
   const str = JSON.stringify(data, null, 2);
-  const uri = 'data:application/json;charset=utf-8,'+encodeURIComponent(str);
-  const a = document.createElement('a');
-  a.href = uri; a.download = 'psychometry-progress.json'; a.click();
-  toast('גיבוי הורד');
+  const filename = 'psychometry-progress-' + new Date().toISOString().slice(0, 10) + '.json';
+  downloadOrShare(filename, 'application/json', str, 'הגיבוי מוכן לשמירה');
 }
 function importData(input) {
   const file = input.files && input.files[0];
@@ -3277,10 +3299,9 @@ function simImport(input) {
 }
 function simExport() {
   if (!simExams().length) { toast('אין מבחנים לייצוא'); return; }
-  const blob = new Blob([JSON.stringify({ exams: simExams(), qstats: simQStats() }, null, 2)], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a'); a.href = url; a.download = 'simulations.json'; a.click();
-  URL.revokeObjectURL(url);
+  const str = JSON.stringify({ exams: simExams(), qstats: simQStats() }, null, 2);
+  const filename = 'simulations-' + new Date().toISOString().slice(0, 10) + '.json';
+  downloadOrShare(filename, 'application/json', str, 'מאגר המבחנים מוכן לשמירה');
 }
 
 /* ================= Multiplication & powers drill ================= */
