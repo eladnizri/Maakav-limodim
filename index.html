@@ -477,6 +477,8 @@
 <div class="content">
   <div id="storageAlert" class="storage-alert" style="display:none;"></div>
   <div id="tab-topics" class="tab-content active">
+    <div id="dailyCard"></div>
+    <div id="weakTopicsBanner"></div>
     <div style="margin-bottom:14px;">
       <button class="btn" onclick="switchTab('scores', document.querySelector('[data-tab=scores]')); openScoreForm();">הוספת ציון סימולציה</button>
     </div>
@@ -523,6 +525,7 @@
     </div>
     <div id="scoresList"></div>
     <div id="practiceInsights"></div>
+    <div id="topicWeakness"></div>
   </div>
 
   <div id="tab-sim" class="tab-content">
@@ -537,6 +540,10 @@
       <div class="field">
         <label>תאריך המבחן</label>
         <input type="date" id="examDate" value="2026-12-04" onchange="saveSettings()">
+      </div>
+      <div class="field" style="margin-top:14px;margin-bottom:0;">
+        <label>יעד יומי (שאלות תרגול ומילים ביחד)</label>
+        <input type="number" id="dailyTarget" min="1" max="300" step="1" inputmode="numeric" value="15" onchange="saveDailyTarget(this.value)">
       </div>
     </div>
     <div class="info-card">
@@ -719,6 +726,7 @@ let data = {
   teacher: { chats: [], methods: [], activeId: null, mistakes: [], stats: { topics: {} } },
   sims: { exams: [] },
   practice: [],
+  daily: { target: 15, log: {} },
   settings: { examDate: '2026-12-04' }
 };
 let uiNotesOpen = {};
@@ -777,7 +785,12 @@ function load() {
   if (!data.sims.qstats || typeof data.sims.qstats !== 'object') data.sims.qstats = {};
   simMigrateTags();
   if (!Array.isArray(data.practice)) data.practice = [];
+  if (!data.daily || typeof data.daily !== 'object') data.daily = { target: 15, log: {} };
+  if (!data.daily.log || typeof data.daily.log !== 'object') data.daily.log = {};
+  if (!(data.daily.target > 0)) data.daily.target = 15;
   if (!data.settings || typeof data.settings !== 'object') data.settings = { examDate: '2026-12-04' };
+  const dt = document.getElementById('dailyTarget');
+  if (dt) dt.value = data.daily.target;
   const ed = document.getElementById('examDate');
   if (ed) ed.value = data.settings.examDate;
 }
@@ -877,6 +890,110 @@ function topicTile(ti) {
   const t = TOPIC_TILES[ti % TOPIC_TILES.length];
   return '<span class="tile sm ' + t[0] + '"><svg viewBox="0 0 24 24" fill="none">' + t[1] + '</svg></span>';
 }
+/* ================= Daily goal & streak =================
+   A single combined counter for the day — every practice question answered
+   and every vocabulary card/quiz answer bumps it. Kept deliberately light:
+   no levels, no points — just "did today count" and how many days in a row. */
+const DAILY_FLAME_SVG = '<svg viewBox="0 0 24 24" fill="none"><path d="M12 2.5c1.3 3.3-2.8 4.6-2.8 8.4a2.8 2.8 0 005.6 0c0-1-1-1.8-1-2.8 2 1.2 4.2 4 4.2 7a6 6 0 01-12 0c0-5.4 3.4-7 6-12.6z" fill="currentColor"/></svg>';
+function dailyKey(d) {
+  d = d || new Date();
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+function dailyToday() { return (data.daily.log[dailyKey()]) || 0; }
+function dailyPruneLog() {
+  const keys = Object.keys(data.daily.log);
+  if (keys.length <= 400) return;
+  keys.sort().slice(0, keys.length - 400).forEach(k => delete data.daily.log[k]);
+}
+function dailyBump(n) {
+  if (!data.daily) data.daily = { target: 15, log: {} };
+  const key = dailyKey(), target = data.daily.target || 15;
+  const before = data.daily.log[key] || 0;
+  const after = before + (n || 1);
+  data.daily.log[key] = after;
+  dailyPruneLog();
+  save();
+  renderDailyCard();
+  if (before < target && after >= target) toast('🔥 היעד היומי הושג — הרצף נשמר!');
+}
+// Today doesn't have to be finished yet to keep yesterday's streak alive —
+// it only breaks once a full day passes with the target unmet.
+function dailyStreak() {
+  const target = data.daily.target || 15;
+  let d = new Date();
+  if ((data.daily.log[dailyKey(d)] || 0) < target) d.setDate(d.getDate() - 1);
+  let streak = 0;
+  while ((data.daily.log[dailyKey(d)] || 0) >= target) { streak++; d.setDate(d.getDate() - 1); }
+  return streak;
+}
+function saveDailyTarget(v) {
+  const n = Math.max(1, Math.min(300, parseInt(v, 10) || 15));
+  data.daily.target = n;
+  save();
+  renderDailyCard();
+  toast('היעד היומי עודכן');
+}
+function renderDailyCard() {
+  const el = document.getElementById('dailyCard');
+  if (!el) return;
+  const today = dailyToday(), target = data.daily.target || 15;
+  const pct = Math.min(100, Math.round(today / target * 100));
+  const streak = dailyStreak();
+  const streakTxt = streak > 0 ? streak + (streak === 1 ? ' יום רצף' : ' ימי רצף') : 'תרגלו היום כדי להתחיל רצף';
+  el.innerHTML = '<div class="info-card" style="margin-bottom:14px;">' +
+      '<div style="display:flex;align-items:center;gap:14px;">' +
+        '<span class="tile amber">' + DAILY_FLAME_SVG + '</span>' +
+        '<div style="flex:1;min-width:0;">' +
+          '<div style="font-weight:800;font-size:1.05em;">' + streakTxt + '</div>' +
+          '<div class="topic-progress-wrap" style="margin-top:9px;">' +
+            '<div class="topic-bar"><div class="topic-bar-fill" style="width:' + pct + '%"></div></div>' +
+            '<span class="topic-count">' + today + '/' + target + ' היום</span>' +
+          '</div>' +
+        '</div>' +
+      '</div>' +
+    '</div>';
+}
+
+/* ================= Weak-topic diagnosis =================
+   Aggregates the same per-question accuracy already tracked for difficulty
+   (data.sims.qstats) up to the topic level, across every exam ever imported —
+   not just the current practice pool — so it reflects real performance. */
+function simTopicWeakness() {
+  const stats = simQStats();
+  const byTopic = {};
+  simExams().forEach(ex => (ex.sections || []).forEach(sec => (sec.questions || []).forEach(q => {
+    const st = stats[q.qid]; if (!st || !st.n) return;
+    const k = q.topic || 'other';
+    byTopic[k] = byTopic[k] || { n: 0, c: 0 };
+    byTopic[k].n += st.n; byTopic[k].c += st.c;
+  })));
+  return Object.keys(byTopic)
+    .map(k => ({ topic: k, n: byTopic[k].n, c: byTopic[k].c, acc: byTopic[k].c / byTopic[k].n }))
+    .filter(r => r.n >= 3 && SIM_TOPICS[r.topic] && r.topic !== 'other')
+    .sort((a, b) => a.acc - b.acc);
+}
+function practiceWeakTopic(topic) {
+  const info = SIM_TOPICS[topic]; if (!info || !info.type) return;
+  switchTab('sim', null);
+  simSetup('practice');
+  SIM.pType = info.type; SIM.pTopic = topic; SIM.pDiff = 'all'; SIM.pCount = 10;
+  simRender();
+}
+function renderWeakTopicsBanner() {
+  const el = document.getElementById('weakTopicsBanner');
+  if (!el) return;
+  const weak = simTopicWeakness().slice(0, 2);
+  if (!weak.length) { el.innerHTML = ''; return; }
+  let html = '<div class="info-card" style="margin-bottom:14px;"><h3 style="margin-bottom:12px;">נושאים לחיזוק</h3>';
+  weak.forEach(w => {
+    const info = SIM_TOPICS[w.topic];
+    html += '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px;">' +
+      '<span class="sim-secbadge c-' + info.tile + '" style="margin:0;">' + escapeHtml(info.name) + ' · ' + Math.round(w.acc * 100) + '%</span>' +
+      '<button class="btn outline" style="width:auto;padding:9px 16px;" onclick="practiceWeakTopic(\'' + w.topic + '\')">תרגל</button></div>';
+  });
+  html += '</div>';
+  el.innerHTML = html;
+}
 function renderTopics() {
 
   let html = '';
@@ -928,6 +1045,8 @@ function renderTopics() {
   document.getElementById('topicsList').innerHTML = html;
   updateOverall();
   renderCountdown();
+  renderDailyCard();
+  renderWeakTopicsBanner();
 }
 function renderCountdown() {
   const el = document.getElementById('examCountdown');
@@ -1115,10 +1234,34 @@ function renderPracticeInsights() {
   if (weakest && runs.length >= 2) html += '<div class="hint" style="line-height:1.6;">הפרק שדורש יותר תרגול: <b>' + simTypeName(weakest.t) + '</b> (' + Math.round(weakest.pct) + '% דיוק).</div>';
   el.innerHTML = html;
 }
+function renderTopicWeaknessFull() {
+  const el = document.getElementById('topicWeakness');
+  if (!el) return;
+  const rows = simTopicWeakness();
+  if (!rows.length) { el.innerHTML = ''; return; }
+  let html = '<div class="section-title" style="margin-top:22px;">נושאים לפי ביצועים</div>' +
+    '<div class="info-card"><div class="hint" style="margin-bottom:14px;">מדויק ככל שתרגלת יותר שאלות מאותו נושא — מהחלש לחזק.</div>';
+  rows.forEach(w => {
+    const info = SIM_TOPICS[w.topic];
+    const pct = Math.round(w.acc * 100);
+    html += '<div style="margin-bottom:12px;">' +
+      '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px;">' +
+        '<span class="sim-secbadge c-' + info.tile + '" style="margin:0;">' + escapeHtml(info.name) + '</span>' +
+        '<button class="btn outline" style="width:auto;padding:6px 14px;font-size:0.82em;" onclick="practiceWeakTopic(\'' + w.topic + '\')">תרגל</button>' +
+      '</div>' +
+      '<div class="topic-progress-wrap">' +
+        '<div class="topic-bar"><div class="topic-bar-fill" style="width:' + pct + '%;background:' + (pct >= 70 ? 'var(--success)' : pct >= 50 ? 'var(--accent)' : 'var(--danger)') + '"></div></div>' +
+        '<span class="topic-count">' + pct + '% · ' + w.n + ' שאלות</span>' +
+      '</div></div>';
+  });
+  html += '</div>';
+  el.innerHTML = html;
+}
 function renderScores() {
   const scores = data.scores || [];
   renderScoreChart();
   renderPracticeInsights();
+  renderTopicWeaknessFull();
   if (scores.length === 0) {
     document.getElementById('scoreAvg').textContent = '-';
     document.getElementById('scoreMax').textContent = '-';
@@ -1319,6 +1462,7 @@ function switchTab(name, btn) {
   const navBtn = btn || document.querySelector('.nav button[data-tab="' + (STUDY_TABS.indexOf(name) >= 0 ? 'study' : name) + '"]');
   if (navBtn) navBtn.classList.add('active');
   document.getElementById('mainHeader').style.display = (name === 'words' || name === 'teacher' || name === 'drill') ? 'none' : 'block';
+  if (name === 'topics') { renderWeakTopicsBanner(); renderDailyCard(); }
   if (name === 'scores') renderScores();
   if (name === 'sim') simInit();
   if (name === 'words') vcInit();
@@ -1539,6 +1683,7 @@ function vcMark(known) {
   s.seen++;
   if (known) { s.status = 'known'; s.correct++; } else { s.status = 'unknown'; }
   save();
+  dailyBump(1);
   VC.qi++;
   if (VC.qi >= VC.queue.length) vcBuildQueue();
   vcShowCard();
@@ -1616,6 +1761,7 @@ function vcQuizPick(el, val, correctVal, w) {
   const s = vcStat(w.id); s.seen++;
   if (ok) { s.correct++; if (s.status !== 'known' && s.correct >= 2) s.status = 'known'; }
   save();
+  dailyBump(1);
   document.querySelectorAll('#vcQuizOpts .vc-opt').forEach(o => {
     o.classList.add('locked');
     if (o.textContent === correctVal) o.classList.add('correct');
@@ -2837,7 +2983,13 @@ async function simFillRegion(q) {
     if (wait) wait.textContent = 'שגיאה בטעינת השאלה מהמבחן.';
   }
 }
-function simChoose(i) { simCurQ().chosen = i; simRenderRun(); }
+function simChoose(i) {
+  const q = simCurQ();
+  const first = q.chosen == null;
+  q.chosen = i;
+  if (first) dailyBump(1);
+  simRenderRun();
+}
 function simNext() { if (SIM.run.qIdx < simCurSec().questions.length - 1) { SIM.run.qIdx++; simRenderRun(); } }
 function simPrev() { if (SIM.run.qIdx > 0) { SIM.run.qIdx--; simRenderRun(); } }
 function simNextSection(auto) {
