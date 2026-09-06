@@ -545,6 +545,11 @@
       <button class="btn outline" onclick="exportData()" style="margin-bottom:10px;">ייצוא גיבוי</button>
       <input type="file" id="importFile" accept="application/json,.json" style="display:none;" onchange="importData(this)">
       <button class="btn" onclick="document.getElementById('importFile').click()">ייבוא גיבוי</button>
+      <button class="sim-vault-toggle" id="storageToggle" style="margin-top:16px;" onclick="toggleStorageBreakdown()">
+        <span>פירוט אחסון — מה תופס מקום</span>
+        <svg viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <div id="storageBreakdown" style="display:none;margin-top:10px;"></div>
     </div>
     <div class="info-card">
       <h3>מורה חכם (Gemini)</h3>
@@ -777,6 +782,53 @@ function load() {
   if (ed) ed.value = data.settings.examDate;
 }
 function save() { return lsSet('psychoTracker', JSON.stringify(data)); }
+
+/* ---- storage breakdown ----
+   Shows exactly which slice of the saved data is heavy, so a "storage full"
+   report can be diagnosed from a screenshot instead of guesswork. Byte counts
+   use UTF-8 (Blob), matching the size of an exported backup file. */
+function fmtBytes(n) {
+  if (n >= 1024 * 1024) return (n / 1024 / 1024).toFixed(2) + ' MB';
+  if (n >= 1024) return Math.round(n / 1024) + ' KB';
+  return n + ' B';
+}
+function storageBreakdown() {
+  const sizeOf = v => new Blob([JSON.stringify(v === undefined ? null : v)]).size;
+  const rows = [
+    { label: 'תמונות בהערות נושאים', bytes: sizeOf(data.images) },
+    { label: 'הערות וסימוני התקדמות', bytes: sizeOf({ done: data.done, notes: data.notes, openTopics: data.openTopics }) },
+    { label: 'בנק שאלות התרגול', bytes: sizeOf(data.sims && data.sims.exams) },
+    { label: 'סטטיסטיקת קושי לשאלה', bytes: sizeOf(data.sims && data.sims.qstats) },
+    { label: 'שיחות עם המורה', bytes: sizeOf(data.teacher) },
+    { label: 'אוצר מילים — התקדמות', bytes: sizeOf(data.vocab) },
+    { label: 'ציוני סימולציות', bytes: sizeOf(data.scores) },
+    { label: 'יומן תרגולים', bytes: sizeOf(data.practice) },
+    { label: 'הגדרות', bytes: sizeOf(data.settings) }
+  ];
+  const total = rows.reduce((s, r) => s + r.bytes, 0);
+  return { rows: rows.filter(r => r.bytes > 0).sort((a, b) => b.bytes - a.bytes), total };
+}
+function toggleStorageBreakdown() {
+  const el = document.getElementById('storageBreakdown'), btn = document.getElementById('storageToggle');
+  const show = el.style.display === 'none';
+  el.style.display = show ? 'block' : 'none';
+  if (btn) btn.classList.toggle('open', show);
+  if (show) renderStorageBreakdown();
+}
+function renderStorageBreakdown() {
+  const el = document.getElementById('storageBreakdown');
+  if (!el) return;
+  const { rows, total } = storageBreakdown();
+  let html = '<div class="hint" style="margin-bottom:12px;">סה"כ ' + fmtBytes(total) + ' שמור במכשיר עבור האפליקציה הזו, לפי קטגוריה:</div>';
+  rows.forEach(r => {
+    const pct = total ? Math.round(r.bytes / total * 100) : 0;
+    html += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">' +
+      '<div style="flex:1;font-size:0.88em;font-weight:600;">' + escapeHtml(r.label) + '</div>' +
+      '<div class="topic-bar" style="width:60px;flex:none;"><div class="topic-bar-fill" style="width:' + pct + '%"></div></div>' +
+      '<div style="font-size:0.8em;color:var(--muted);font-weight:700;white-space:nowrap;min-width:58px;text-align:left;direction:ltr;unicode-bidi:embed;">' + fmtBytes(r.bytes) + '</div></div>';
+  });
+  el.innerHTML = html;
+}
 function escapeHtml(str) {
   return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
