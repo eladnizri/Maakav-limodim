@@ -410,6 +410,9 @@
   .sim-timer { font-weight: 800; font-variant-numeric: tabular-nums; color: #fff; background: var(--primary); font-size: 0.96em; padding: 7px 13px; border-radius: 12px; box-shadow: 0 3px 0 var(--primary-dark); }
   .sim-timer.low { background: var(--danger); box-shadow: 0 3px 0 var(--danger-dark); }
   .sim-secbadge { display: inline-block; font-size: 0.78em; font-weight: 800; color: #fff; background: var(--violet); padding: 6px 13px; border-radius: 20px; margin-bottom: 10px; box-shadow: 0 3px 0 var(--violet-dark); }
+  .sim-feedback { margin-top: 14px; padding: 12px 14px; border-radius: var(--radius-sm); font-weight: 800; font-size: 0.95em; }
+  .sim-feedback.ok { background: var(--success-soft); color: var(--success-dark); }
+  .sim-feedback.bad { background: var(--rose-soft); color: var(--danger-dark); }
   .sim-secbadge.neutral { background: var(--inset) !important; color: var(--muted) !important; box-shadow: none !important; }
   .sim-qcard { background: var(--card); border: none; border-radius: var(--radius); padding: 18px; box-shadow: var(--shadow); }
   /* printed-question cards go edge to edge so the scan is as large as possible */
@@ -975,9 +978,8 @@ function simTopicWeakness() {
 function practiceWeakTopic(topic) {
   const info = SIM_TOPICS[topic]; if (!info || !info.type) return;
   switchTab('sim', null);
-  simSetup('practice');
-  SIM.pType = info.type; SIM.pTopic = topic; SIM.pDiff = 'all'; SIM.pCount = 10;
-  simRender();
+  SIM.fType = info.type; SIM.fTopic = topic;
+  simSetup('flow');
 }
 function renderWeakTopicsBanner() {
   const el = document.getElementById('weakTopicsBanner');
@@ -2564,7 +2566,7 @@ function teacherDeleteMethod(id) {
 }
 
 /* ================= Simulations module ================= */
-const SIM = { view: 'home', mode: null, timerOn: false, run: null, result: null, timerId: null, remaining: 0, pdfBusy: false, pdfMsg: '', pCount: 10, vaultOpen: false, pType: 'quant', pTopic: 'all', pDiff: 'all', pSmart: false, guideOpen: false };
+const SIM = { view: 'home', mode: null, timerOn: false, run: null, result: null, timerId: null, remaining: 0, pdfBusy: false, pdfMsg: '', pCount: 10, vaultOpen: false, pType: 'quant', pTopic: 'all', pDiff: 'all', pSmart: false, guideOpen: false, fType: 'quant', fTopic: 'all' };
 const SIM_CH_SIZE = 20;       // questions per simulated chapter
 const SIM_PER_Q = 60;  // seconds per question when the timer is on (1 min each)
 
@@ -2765,7 +2767,8 @@ function simRenderHome() {
   if (!exams.length) html += '<div class="sim-empty">אין עדיין מבחנים במכשיר.<br>ייבא קובץ PDF של מבחן כדי להתחיל.</div>';
   html += '<div class="sim-modes">';
   html += simModeCard('full', 'מבחן מלא', 'מבחן שלם — פרקי כמותי ומילולי. אמת או מעורבב.', exams.length > 0, '📝');
-  html += simModeCard('practice', 'תרגול', 'בחר כמות שאלות וסוג פרק לתרגול ממוקד.', nQ > 0 || nV > 0, '🎯');
+  html += simModeCard('mini', 'מיני מבחן', 'מספר שאלות שאתה בוחר, בדיקה בסוף — כמו פרק קצר.', nQ > 0 || nV > 0, '🎯');
+  html += simModeCard('flow', 'תרגול', 'נושא לבחירתך, תשובה מיידית אחרי כל שאלה, בלי הגבלת כמות.', nQ > 0 || nV > 0, '⚡');
   html += '</div>';
   const vaultOpen = SIM.vaultOpen || !exams.length;
   const chevron = '<svg viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
@@ -2809,16 +2812,56 @@ function simSetup(mode) { SIM.mode = mode; SIM.view = 'setup'; simRender(); }
 function simToggleTimer(el) { SIM.timerOn = !!el.checked; }
 function simSetCount(n) { SIM.pCount = n; simRender(); }
 function simSetPType(t) { SIM.pType = t; SIM.pTopic = 'all'; simRender(); }
+function simSetFType(t) { SIM.fType = t; SIM.fTopic = 'all'; simRender(); }
+function simSetFTopic(k) { SIM.fTopic = k; simRender(); }
+// picks among topics that actually have questions, so "random" never lands on an empty one
+function simRandomFTopic() {
+  const counts = simTopicCounts(SIM.fType);
+  const avail = simTopicsFor(SIM.fType).filter(k => counts[k]);
+  if (!avail.length) { toast('אין נושאים מסווגים עדיין'); return; }
+  SIM.fTopic = avail[Math.floor(Math.random() * avail.length)];
+  simRender();
+  toast('נבחר: ' + simTopicName(SIM.fTopic));
+}
 function simSetPTopic(k) { SIM.pTopic = k; simRender(); }
 function simSetPDiff(d) { SIM.pDiff = d; if (SIM.pTopic !== 'all' && !simPool(SIM.pType, SIM.pTopic, d).length) SIM.pTopic = 'all'; simRender(); }
 function simSetSmart(el) { SIM.pSmart = !!el.checked; }
 function simRenderSetup() {
   const root = document.getElementById('simRoot');
-  const titles = { full: 'מבחן מלא', practice: 'תרגול' };
+  const titles = { full: 'מבחן מלא', mini: 'מיני מבחן', flow: 'תרגול' };
   let html = '<button class="btn danger-text" onclick="simInit()">→ חזרה</button>';
   html += '<div class="section-title" style="margin-top:10px;">' + titles[SIM.mode] + '</div>';
-  html += '<div class="sim-toggle"><span>טיימר (דקה לשאלה)</span><label class="sim-switch"><input type="checkbox" ' + (SIM.timerOn ? 'checked' : '') + ' onchange="simToggleTimer(this)"><span class="sim-slider"></span></label></div>';
-  if (SIM.mode === 'full') {
+  // a timer belongs to something you sit down and finish, not to open-ended practice
+  if (SIM.mode !== 'flow') html += '<div class="sim-toggle"><span>טיימר (דקה לשאלה)</span><label class="sim-switch"><input type="checkbox" ' + (SIM.timerOn ? 'checked' : '') + ' onchange="simToggleTimer(this)"><span class="sim-slider"></span></label></div>';
+  if (SIM.mode === 'flow') {
+    const step = n => '<span class="step-badge c-' + n[1] + '">' + n[0] + '</span> ';
+    html += '<div class="sim-section-title">' + step(['1', 'green']) + 'סוג הפרק</div><div class="vc-seg" style="margin-bottom:4px;">';
+    [['quant', 'כמותי'], ['verbal', 'מילולי']].forEach(([t, lbl]) => {
+      const n = simPool(t).length;
+      html += '<button class="' + (SIM.fType === t ? 'active' : '') + '" onclick="simSetFType(\'' + t + '\')">' + lbl + ' <span style="opacity:.6;font-size:.85em">' + n + '</span></button>';
+    });
+    html += '</div>';
+
+    const counts = simTopicCounts(SIM.fType);
+    const allN = simPool(SIM.fType).length;
+    html += '<div class="sim-section-title">' + step(['2', 'violet']) + 'נושא</div>';
+    html += '<div class="vc-units" style="padding-bottom:10px;flex-wrap:wrap;overflow:visible;">';
+    html += '<button class="vc-chip' + (SIM.fTopic === 'all' ? ' active' : '') + '" onclick="simSetFTopic(\'all\')">הכל מעורבב <span class="vc-chip-cnt">' + allN + '</span></button>';
+    simTopicsFor(SIM.fType).forEach(k => {
+      const n = counts[k] || 0;
+      html += '<button class="vc-chip' + (SIM.fTopic === k ? ' active' : '') + '"' + (n ? '' : ' disabled style="opacity:.45"') +
+        ' onclick="simSetFTopic(\'' + k + '\')">' + simTopicName(k) + ' <span class="vc-chip-cnt">' + n + '</span></button>';
+    });
+    html += '</div>';
+    html += '<button class="btn outline" onclick="simRandomFTopic()">🎲 נושא אקראי</button>';
+
+    const avail = simPool(SIM.fType, SIM.fTopic).length;
+    html += '<button class="btn" style="margin-top:12px;" ' + (avail ? 'onclick="simStartFlow()"' : 'disabled') + '>' +
+      (avail ? 'התחלת תרגול' : 'אין שאלות בנושא הזה') + '</button>';
+    html += '<div class="sim-zoomhint" style="margin-top:8px;">' +
+      escapeHtml(SIM.fTopic === 'all' ? simTypeName(SIM.fType) : simTopicName(SIM.fTopic)) +
+      ' · ' + avail + ' שאלות · תשובה מיידית אחרי כל שאלה</div>';
+  } else if (SIM.mode === 'full') {
     const nQ = simPool('quant').length, nV = simPool('verbal').length;
     html += '<div class="sim-section-title">מבחן אמת</div>';
     simExams().forEach(ex => {
@@ -2884,7 +2927,7 @@ function simBegin(run) {
   run.sections = run.sections.filter(s => s.questions.length);
   run.secIdx = 0; run.qIdx = 0;
   SIM.run = run; SIM.view = 'run';
-  simStartTimerForSection();
+  if (!run.immediate) simStartTimerForSection();
   simRender();
 }
 function simStartFull(id) {
@@ -2910,6 +2953,31 @@ function simStartPractice(type, topic, diff) {
   simBegin({ title: 'תרגול ' + name + (df === 'all' ? '' : ' · ' + SIM_DIFFS[df]), practice: true, writing: '', writingText: '',
     sections: [{ type: t, name: name, questions: pool }] });
 }
+function simStartFlow() {
+  const t = SIM.fType, tp = SIM.fTopic;
+  const pool = simPool(t, tp);
+  if (!pool.length) { toast('אין שאלות מתאימות'); return; }
+  const name = tp === 'all' ? simTypeName(t) : simTopicName(tp);
+  simBegin({ title: 'תרגול ' + name, practice: true, immediate: true, flowType: t, flowTopic: tp,
+    writing: '', writingText: '', sections: [{ type: t, name: name, questions: simShuffle(pool).map(simCloneQ) }] });
+}
+// Endless by design: when the shuffled queue runs out it is refilled from the
+// same pool, so a session ends when you decide it does, not when the list does.
+function simFlowNext() {
+  const sec = simCurSec();
+  SIM.run.qIdx++;
+  if (SIM.run.qIdx >= sec.questions.length) {
+    const more = simShuffle(simPool(SIM.run.flowType, SIM.run.flowTopic)).map(simCloneQ);
+    if (!more.length) { simFinish(); return; }
+    sec.questions = sec.questions.concat(more);
+  }
+  simRenderRun();
+}
+function simFlowTally() {
+  const qs = simCurSec().questions.filter(x => x.chosen != null);
+  const cor = qs.filter(x => x.chosen === x.correct).length;
+  return { done: qs.length, cor: cor };
+}
 function simCurSec() { return SIM.run.sections[SIM.run.secIdx]; }
 function simCurQ() { return simCurSec().questions[SIM.run.qIdx]; }
 function simRenderRun() {
@@ -2928,9 +2996,19 @@ function simRenderRun() {
     if (tinfo) html += '<div class="sim-secbadge c-' + tinfo.tile + '" style="margin-right:6px;">' + escapeHtml(tinfo.name + (q.sub ? ' · ' + q.sub : '')) + '</div>';
   }
   html += '<div class="sim-runbar">';
-  if (SIM.timerOn) html += '<span class="sim-timer' + (SIM.remaining <= 60 ? ' low' : '') + '" id="simTimer">' + simFmt(SIM.remaining) + '</span>';
-  html += '<div class="vc-progress-track"><div class="vc-progress-fill" style="width:' + pct + '%"></div></div>';
-  html += '<span style="font-size:0.85em;color:var(--muted)">' + (idx + 1) + '/' + total + '</span></div>';
+  if (SIM.run.immediate) {
+    const t = simFlowTally();
+    const acc = t.done ? Math.round(t.cor / t.done * 100) : 0;
+    html += '<span class="sim-secbadge c-green" style="margin:0;">✓ ' + t.cor + '</span>' +
+      '<span class="sim-secbadge c-rose" style="margin:0 6px 0 0;">✗ ' + (t.done - t.cor) + '</span>' +
+      '<div class="vc-progress-track"><div class="vc-progress-fill" style="width:' + acc + '%;background:' +
+        (acc >= 70 ? 'var(--success)' : acc >= 50 ? 'var(--accent)' : 'var(--danger)') + '"></div></div>' +
+      '<span style="font-size:0.85em;color:var(--muted);font-weight:700;">' + (t.done ? acc + '%' : '—') + '</span></div>';
+  } else {
+    if (SIM.timerOn) html += '<span class="sim-timer' + (SIM.remaining <= 60 ? ' low' : '') + '" id="simTimer">' + simFmt(SIM.remaining) + '</span>';
+    html += '<div class="vc-progress-track"><div class="vc-progress-fill" style="width:' + pct + '%"></div></div>';
+    html += '<span style="font-size:0.85em;color:var(--muted)">' + (idx + 1) + '/' + total + '</span></div>';
+  }
   html += '<div class="sim-qcard' + (q.region ? ' region' : '') + '">';
   if (q.image) html += '<img class="sim-qimg" src="' + q.image + '" onclick="teacherOpenImage(this.src)" alt="">';
   if (q.region) {
@@ -2940,21 +3018,33 @@ function simRenderRun() {
       '<div class="sim-qtext" id="simRegionWait">טוען את השאלה מהמבחן...</div>' +
       '<div class="sim-zoomhint" id="simZoomHint" style="display:none;">הקש על השאלה להגדלה</div>' +
       '<div class="sim-opts sim-numrow">';
-    for (let i = 0; i < 4; i++) html += '<button class="sim-num' + (q.chosen === i ? ' selected' : '') + '" onclick="simChoose(' + i + ')">' + (i + 1) + '</button>';
+    for (let i = 0; i < 4; i++) html += '<button class="sim-num' + simOptCls(q, i) + '" onclick="simChoose(' + i + ')">' + (i + 1) + '</button>';
     html += '</div>';
   } else {
     html += '<div class="sim-qtext">' + escapeHtml(q.text) + '</div><div class="sim-opts">';
-    q.options.forEach((o, i) => { html += '<button class="sim-opt' + (q.chosen === i ? ' selected' : '') + '" onclick="simChoose(' + i + ')">' + escapeHtml(o) + '</button>'; });
+    q.options.forEach((o, i) => { html += '<button class="sim-opt' + simOptCls(q, i) + '" onclick="simChoose(' + i + ')">' + escapeHtml(o) + '</button>'; });
     html += '</div>';
   }
+  if (SIM.run.immediate && q.chosen != null) {
+    const ok = q.chosen === q.correct;
+    const right = q.region ? 'תשובה ' + (q.correct + 1) : escapeHtml(q.options[q.correct] || '');
+    html += '<div class="sim-feedback ' + (ok ? 'ok' : 'bad') + '">' +
+      (ok ? '✓ נכון' : '✗ התשובה הנכונה: ' + right) + '</div>';
+  }
   html += '</div>';
-  const lastSec = SIM.run.secIdx === SIM.run.sections.length - 1, lastQ = idx === total - 1;
   html += '<div class="sim-nav">';
-  if (!SIM.timerOn && idx > 0) html += '<button class="btn outline" onclick="simPrev()">הקודם</button>';
-  if (lastQ && lastSec) html += '<button class="btn" onclick="simFinish()">סיום ובדיקה</button>';
-  else if (lastQ) html += '<button class="btn" onclick="simNextSection(false)">לפרק הבא →</button>';
-  else html += '<button class="btn" onclick="simNext()">הבא</button>';
+  if (SIM.run.immediate) {
+    if (q.chosen == null) html += '<button class="btn ghost" disabled>בחר תשובה כדי להמשיך</button>';
+    else html += '<button class="btn" onclick="simFlowNext()">הבא ←</button>';
+  } else {
+    const lastSec = SIM.run.secIdx === SIM.run.sections.length - 1, lastQ = idx === total - 1;
+    if (!SIM.timerOn && idx > 0) html += '<button class="btn outline" onclick="simPrev()">הקודם</button>';
+    if (lastQ && lastSec) html += '<button class="btn" onclick="simFinish()">סיום ובדיקה</button>';
+    else if (lastQ) html += '<button class="btn" onclick="simNextSection(false)">לפרק הבא →</button>';
+    else html += '<button class="btn" onclick="simNext()">הבא</button>';
+  }
   html += '</div>';
+  if (SIM.run.immediate) html += '<button class="btn outline" style="margin-top:10px;" onclick="simFinish()">סיום וסיכום</button>';
   html += '<button class="btn danger-text" style="margin-top:16px;" onclick="simConfirmExit()">יציאה מהסימולציה</button>';
   root.innerHTML = html;
   if (q.region) simFillRegion(q);
@@ -2983,11 +3073,22 @@ async function simFillRegion(q) {
     if (wait) wait.textContent = 'שגיאה בטעינת השאלה מהמבחן.';
   }
 }
+// In immediate mode the answer is revealed as soon as it is picked; everywhere
+// else a pick is just a selection that stays editable until the end.
+function simOptCls(q, i) {
+  if (!(SIM.run.immediate && q.chosen != null)) return q.chosen === i ? ' selected' : '';
+  if (i === q.correct) return ' correct';
+  if (i === q.chosen) return ' wrong';
+  return '';
+}
 function simChoose(i) {
   const q = simCurQ();
   const first = q.chosen == null;
+  if (SIM.run.immediate && !first) return;   // answered questions are locked
   q.chosen = i;
   if (first) dailyBump(1);
+  // immediate mode has no end-of-run pass, so the answer is banked right here
+  if (first && SIM.run.immediate) { simRecordAnswer(q, i === q.correct); save(); }
   simRenderRun();
 }
 function simNext() { if (SIM.run.qIdx < simCurSec().questions.length - 1) { SIM.run.qIdx++; simRenderRun(); } }
@@ -3021,7 +3122,10 @@ function simFinish() {
   const byType = { quant: { c: 0, t: 0 }, verbal: { c: 0, t: 0 } };
   const mistakes = [];
   const byTopic = {};
+  const immediate = !!SIM.run.immediate;
   SIM.run.sections.forEach(sec => sec.questions.forEach(q => {
+    // an open-ended session always ends on an unanswered question — it is not a miss
+    if (immediate && q.chosen == null) return;
     byType[sec.type].t++;
     const ok = q.chosen === q.correct;
     if (ok) byType[sec.type].c++;
@@ -3029,8 +3133,9 @@ function simFinish() {
     const tk = q.topic || 'other';
     byTopic[tk] = byTopic[tk] || { c: 0, t: 0 };
     byTopic[tk].t++; if (ok) byTopic[tk].c++;
-    // an unanswered question is not evidence about difficulty, so it is not counted
-    if (q.chosen != null) simRecordAnswer(q, ok);
+    // immediate mode already banked each answer as it was given; an unanswered
+    // question is not evidence about difficulty either way
+    if (!immediate && q.chosen != null) simRecordAnswer(q, ok);
   }));
   save();
   SIM.result = { byType: byType, byTopic: byTopic, mistakes: mistakes, saved: false };
@@ -3089,7 +3194,7 @@ function simRenderResults() {
   // mistake review
   html += '<div class="sim-section-title">סקירת טעויות (' + r.mistakes.length + ')</div>';
   if (!r.mistakes.length) html += '<div class="sim-empty" style="padding:20px;">כל הכבוד — אין טעויות! 🎉</div>';
-  else r.mistakes.forEach(m => {
+  else r.mistakes.slice(0, 40).forEach(m => {
     const chosenTxt = m.chosen == null ? 'לא נענתה' : 'בחרת: ' + (m.byNum ? 'תשובה ' + (m.chosen + 1) : escapeHtml(m.options[m.chosen]));
     const correctTxt = m.byNum ? 'תשובה ' + (m.correct + 1) : escapeHtml(m.options[m.correct]);
     let tagSel = '';
@@ -3105,6 +3210,7 @@ function simRenderResults() {
       '<div style="font-size:0.85em;color:var(--danger);">' + chosenTxt + '</div>' +
       '<div style="font-size:0.85em;color:var(--success);margin-bottom:8px;">התשובה הנכונה: ' + correctTxt + '</div>' + tagSel + '</div>';
   });
+  if (r.mistakes.length > 40) html += '<div class="sim-zoomhint" style="margin-top:4px;">מוצגות 40 הראשונות מתוך ' + r.mistakes.length + '.</div>';
   html += '<button class="btn outline" style="margin-top:14px;" onclick="simInit()">חזרה לסימולציות</button>';
   root.innerHTML = html;
 }
