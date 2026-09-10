@@ -995,15 +995,23 @@ async function findImage(base){
   return null;
 }
 
-/* מפנה לדף התיקייה ב-GitHub, ומשם Add file ← Upload files.
-   דף ההעלאה הישיר (/upload/) לא מסתדר עם שם ענף שמכיל לוכסן,
-   בעוד שדף התיקייה (/tree/) עובד בכל מקרה. */
+/* דף ההעלאה הישיר (/upload/) נוח יותר — גוררים ומסיימים — אבל הוא
+   לא מסתדר עם שם ענף שמכיל לוכסן, כי GitHub לא יודע איפה נגמר שם
+   הענף ומתחיל הנתיב. במקרה כזה נופלים לדף התיקייה (/tree/),
+   שממנו מעלים דרך Add file ← Upload files. */
+const directUpload = () => TEAM.upload && !TEAM.upload.branch.includes('/');
+
 function uploadUrl(){
   const u = TEAM.upload;
-  return u && u.repo
-    ? `https://github.com/${u.repo}/tree/${u.branch}/${u.dir}`
-    : '';
+  if (!u || !u.repo) return '';
+  return `https://github.com/${u.repo}/${directUpload() ? 'upload' : 'tree'}/${u.branch}/${u.dir}`;
 }
+
+/* ההסבר משתנה לפי סוג הקישור שנוצר */
+const uploadSteps = () => directUpload()
+  ? 'גוררים לשם קבצים בשמות 1.jpg, 2.jpg, 3.jpg … והם יופיעו כאן לבד'
+  : 'נפתחת תיקיית התמונות ב-GitHub. לוחצים Add file ← Upload files, ' +
+    'גוררים קבצים בשמות 1.jpg, 2.jpg, 3.jpg … והם יופיעו כאן לבד';
 
 function galleryEmpty(){
   const url = uploadUrl();
@@ -1018,9 +1026,7 @@ function galleryEmpty(){
       </a>
       ${url ? `<a class="btn btn-main" href="${esc(url)}" target="_blank" rel="noopener"
                  style="margin-inline-start:10px">⬆️ העלאת תמונות</a>
-               <p style="margin:16px 0 0;font-size:13px">
-                 נפתחת תיקיית התמונות ב-GitHub — שם לוחצים Add file ← Upload files
-               </p>` : ''}
+               <p style="margin:16px 0 0;font-size:13px">${esc(uploadSteps())}</p>` : ''}
     </div>`;
 }
 
@@ -1043,8 +1049,7 @@ function uploadLink(){
   if (!url) return;
   $('#uploadHint').innerHTML = `
     <a href="${esc(url)}" target="_blank" rel="noopener">⬆️ העלאת תמונות לגלריה</a>
-    <span>נפתחת תיקיית התמונות ב-GitHub. לוחצים Add file ← Upload files,
-          גוררים קבצים בשמות 1.jpg, 2.jpg, 3.jpg … והם יופיעו כאן לבד</span>`;
+    <span>${esc(uploadSteps())}</span>`;
 }
 
 /* איתור התמונות: קודם הרשימה הידנית, אחר כך הקבצים הממוספרים */
