@@ -499,14 +499,10 @@ footer .wrap{display:grid;gap:26px;grid-template-columns:1fr auto;align-items:ce
     <div class="wrap">
       <div class="sec-head">
         <p class="eyebrow">העונה</p>
-        <h2>טבלה ומלך שערים</h2>
-        <p>המצב המעודכן בליגה, ומי מוביל את מרוץ הבועטים של הקבוצה.</p>
+        <h2 id="tableTitle"></h2>
+        <p id="tableLead"></p>
       </div>
-      <div class="tabs">
-        <button class="chip on" data-tab="league">טבלת הליגה</button>
-        <button class="chip" data-tab="scorers">מלך שערים</button>
-        <button class="chip" data-tab="assists">מלך בישולים</button>
-      </div>
+      <div class="tabs" id="tableTabs"></div>
 
       <div class="pane on" id="pane-league">
         <div class="tbl-wrap">
@@ -668,15 +664,21 @@ const SQUAD = [
 ];
 
 /* ---- טבלת הליגה ----
-   us:true מסמן את הקבוצה שלנו (השורה תודגש).
-   form: חמשת המשחקים האחרונים — W ניצחון, D תיקו, L הפסד. */
+
+   כרגע ריקה, ולכן אזור הטבלה לא מוצג באתר בכלל.
+   ברגע שממלאים כאן שורות — הסקשן חוזר לבד, יחד עם הקישור בתפריט.
+   הנקודות, הפרש השערים והדירוג מחושבים אוטומטית.
+
+   us:true   מסמן את הקבוצה שלנו (השורה תודגש).
+   form      חמשת המשחקים האחרונים: W ניצחון, D תיקו, L הפסד.
+
+   דוגמה:
+   { team:'המאוחדת',      p:24, w:16, d:4, l:4, gf:96, ga:54,
+     form:['W','W','D','W','L'], us:true },
+   { team:'הפועל השכונה', p:24, w:15, d:5, l:4, gf:88, ga:57,
+     form:['W','D','W','W','W'] },
+                                                                      */
 const LEAGUE = [
-  { team:'המאוחדת',        p:24, w:16, d:4, l:4,  gf:96, ga:54, form:['W','W','D','W','L'], us:true },
-  { team:'הפועל השכונה',  p:24, w:15, d:5, l:4,  gf:88, ga:57, form:['W','D','W','W','W'] },
-  { team:'בית״ר הפארק',   p:24, w:13, d:3, l:8,  gf:74, ga:66, form:['L','W','W','D','L'] },
-  { team:'מכבי הגבעה',    p:24, w:10, d:6, l:8,  gf:69, ga:70, form:['D','L','W','D','W'] },
-  { team:'אחי המגרש',     p:24, w:7,  d:4, l:13, gf:58, ga:81, form:['L','L','D','W','L'] },
-  { team:'הפועל הכביש',   p:24, w:3,  d:2, l:19, gf:41, ga:98, form:['L','L','L','D','L'] }
 ];
 
 /* ---- פודקאסט "הבה נרגילה" ----
@@ -859,52 +861,73 @@ $('#posFilters').addEventListener('click', e => {
   renderSquad();
 });
 
-/* --- טבלת ליגה --- */
-const table = LEAGUE
-  .map(t => ({ ...t, pts: t.w * 3 + t.d, gd: t.gf - t.ga }))
-  .sort((a, b) => b.pts - a.pts || b.gd - a.gd || b.gf - a.gf);
+/* --- טבלה, מלך שערים ומלך בישולים --- */
+const TABS = [
+  { id:'league',  label:'טבלת הליגה',  show: LEAGUE.length > 0 },
+  { id:'scorers', label:'מלך שערים',   show: SQUAD.some(p => p.goals   > 0) },
+  { id:'assists', label:'מלך בישולים', show: SQUAD.some(p => p.assists > 0) }
+].filter(t => t.show);
 
-$('#leagueBody').innerHTML = table.map((t, i) => `
-  <tr class="${t.us ? 'us' : ''}">
-    <td class="rank">${i + 1}</td>
-    <td>${esc(t.team)}</td>
-    <td>${t.p}</td><td>${t.w}</td><td>${t.d}</td><td>${t.l}</td>
-    <td>${t.gf}:${t.ga}</td>
-    <td>${t.gd > 0 ? '+' : ''}${t.gd}</td>
-    <td class="pts">${t.pts}</td>
-    <td><span class="form">${(t.form || []).map(f => `<i class="${f}">${f}</i>`).join('')}</span></td>
-  </tr>`).join('');
+if (!TABS.length){
+  /* אין עדיין נתונים — מסתירים את הסקשן ואת הקישור אליו בתפריט */
+  $('#table').remove();
+  $$('.nav a[href="#table"]').forEach(a => a.remove());
+} else {
+  const onlyRanks = !LEAGUE.length;
+  $('#tableTitle').textContent = onlyRanks ? 'מלך שערים ומלך בישולים' : 'טבלה ומלך שערים';
+  $('#tableLead').textContent  = onlyRanks
+    ? 'מי מוביל את מרוץ הבועטים והמבשלים של הקבוצה.'
+    : 'המצב המעודכן בליגה, ומי מוביל את מרוץ הבועטים של הקבוצה.';
 
-/* --- מלך שערים / בישולים --- */
-const MEDALS = ['🥇', '🥈', '🥉'];
+  $('#tableTabs').innerHTML = TABS.map((t, i) =>
+    `<button class="chip${i ? '' : ' on'}" data-tab="${t.id}">${esc(t.label)}</button>`).join('');
+  $$('.pane').forEach(pane => {
+    const id = pane.id.replace('pane-', '');
+    pane.classList.toggle('on', id === TABS[0].id);
+    if (!TABS.some(t => t.id === id)) pane.remove();
+  });
 
-function renderRanking(el, key, label){
-  const list = [...SQUAD].filter(p => p[key] > 0).sort((a, b) => b[key] - a[key]).slice(0, 8);
-  if (!list.length){
-    el.innerHTML = `<div class="pod-empty">עוד לא נרשמו ${esc(label)} העונה — ` +
-                   `ברגע שנעדכן את הסטטיסטיקה של השחקנים, הטבלה תתמלא כאן לבד.</div>`;
-    return;
+  $('#tableTabs').addEventListener('click', e => {
+    const btn = e.target.closest('[data-tab]');
+    if (!btn) return;
+    $$('#tableTabs .chip').forEach(c => c.classList.toggle('on', c === btn));
+    $$('.pane').forEach(p => p.classList.toggle('on', p.id === 'pane-' + btn.dataset.tab));
+  });
+
+  if (LEAGUE.length){
+    const table = LEAGUE
+      .map(t => ({ ...t, pts: t.w * 3 + t.d, gd: t.gf - t.ga }))
+      .sort((a, b) => b.pts - a.pts || b.gd - a.gd || b.gf - a.gf);
+
+    $('#leagueBody').innerHTML = table.map((t, i) => `
+      <tr class="${t.us ? 'us' : ''}">
+        <td class="rank">${i + 1}</td>
+        <td>${esc(t.team)}</td>
+        <td>${t.p}</td><td>${t.w}</td><td>${t.d}</td><td>${t.l}</td>
+        <td>${t.gf}:${t.ga}</td>
+        <td>${t.gd > 0 ? '+' : ''}${t.gd}</td>
+        <td class="pts">${t.pts}</td>
+        <td><span class="form">${(t.form || []).map(f => `<i class="${f}">${f}</i>`).join('')}</span></td>
+      </tr>`).join('');
   }
-  const top = list[0][key];
-  el.innerHTML = list.map((p, i) => `
-    <div class="scorer">
-      <div class="medal">${MEDALS[i] || (i + 1)}</div>
-      <div>
-        <h4>${esc(p.name)} <span style="color:var(--txt-dim);font-weight:600;font-size:13px">· ${esc(p.pos)}</span></h4>
-        <div class="bar"><i style="width:${Math.round(p[key] / top * 100)}%"></i></div>
-      </div>
-      <div class="goals">${p[key]}<small>${label}</small></div>
-    </div>`).join('');
-}
-renderRanking($('#scorersList'), 'goals', 'שערים');
-renderRanking($('#assistsList'), 'assists', 'בישולים');
 
-$('.tabs').addEventListener('click', e => {
-  const btn = e.target.closest('[data-tab]');
-  if (!btn) return;
-  $$('.tabs .chip').forEach(c => c.classList.toggle('on', c === btn));
-  $$('.pane').forEach(p => p.classList.toggle('on', p.id === 'pane-' + btn.dataset.tab));
-});
+  const MEDALS = ['🥇', '🥈', '🥉'];
+  const renderRanking = (el, key, label) => {
+    const list = [...SQUAD].filter(p => p[key] > 0).sort((a, b) => b[key] - a[key]).slice(0, 8);
+    const top = list[0][key];
+    el.innerHTML = list.map((p, i) => `
+      <div class="scorer">
+        <div class="medal">${MEDALS[i] || (i + 1)}</div>
+        <div>
+          <h4>${esc(p.name)} <span style="color:var(--txt-dim);font-weight:600;font-size:13px">· ${esc(p.pos)}</span></h4>
+          <div class="bar"><i style="width:${Math.round(p[key] / top * 100)}%"></i></div>
+        </div>
+        <div class="goals">${p[key]}<small>${label}</small></div>
+      </div>`).join('');
+  };
+  if ($('#scorersList')) renderRanking($('#scorersList'), 'goals',   'שערים');
+  if ($('#assistsList')) renderRanking($('#assistsList'), 'assists', 'בישולים');
+}
 
 /* --- פודקאסט --- */
 if (PODCASTS.length){
