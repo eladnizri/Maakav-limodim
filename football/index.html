@@ -228,6 +228,18 @@ tbody tr.us td:first-child{box-shadow:inset 3px 0 0 var(--team-1)}
 .pod.open .pod-body{display:block}
 .pod-body p{margin:0 0 14px;color:var(--txt-dim);line-height:1.7}
 .pod-body iframe{width:100%;border:0;border-radius:12px}
+.soon{
+  text-align:center;padding:46px 24px;border:1px dashed var(--line);border-radius:var(--radius);
+  background:linear-gradient(160deg,var(--card),var(--card-2));
+}
+.soon-badge{
+  display:inline-block;margin-bottom:14px;padding:5px 15px;border-radius:999px;
+  background:color-mix(in srgb,var(--team-1) 15%,transparent);
+  border:1px solid color-mix(in srgb,var(--team-1) 35%,transparent);
+  color:var(--team-1);font-size:12px;font-weight:900;letter-spacing:1px;
+}
+.soon h3{margin:0 0 8px;font-size:22px;font-weight:900}
+.soon p{margin:0 auto 20px;max-width:44ch;color:var(--txt-dim);line-height:1.6}
 .pod-empty{
   padding:18px;border:1px dashed var(--line);border-radius:12px;color:var(--txt-dim);
   font-size:14px;text-align:center;
@@ -235,6 +247,7 @@ tbody tr.us td:first-child{box-shadow:inset 3px 0 0 var(--team-1)}
 
 /* ===== גלריה ===== */
 .gallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px}
+.gallery.empty{display:block}
 .shot{
   position:relative;aspect-ratio:4/3;border-radius:14px;overflow:hidden;cursor:pointer;
   border:1px solid var(--line);
@@ -461,7 +474,7 @@ footer .wrap{display:grid;gap:26px;grid-template-columns:1fr auto;align-items:ce
       <div class="sec-head">
         <p class="eyebrow">🎙️ פינת הפודקאסטים</p>
         <h2>הבה נרגילה</h2>
-        <p>הפודקאסט של המאוחדת. פרק חדש בימי ראשון, עם אורחים מהקבוצה, פינות קבועות והמון דיבורים לא במקום. זמין בכל הפלטפורמות.</p>
+        <p>הפודקאסט של המאוחדת — אורחים מהקבוצה, פינות קבועות והמון דיבורים לא במקום.</p>
       </div>
       <div class="pods" id="podList"></div>
     </div>
@@ -549,7 +562,7 @@ const STATS = [];
    apps / goals / assists = סטטיסטיקה. אם לא ממלאים — שורת המספרים
    פשוט לא מוצגת, ואף אחד לא נראה כאילו כבש 0 שערים.               */
 const SQUAD = [
-  { name:'אייל חזן',        pos:'חלוץ / קשר',        cat:'התקפה', photo:'' },
+  { name:'אייל חזן',        pos:'חלוץ / קשר',        cat:'התקפה', photo:'', captain:true },
   { name:'לירן ווליך',      pos:'חלוץ רחבה',          cat:'התקפה', photo:'' },
   { name:'רז ברוכשטיין',    pos:'חלוץ רחבה',          cat:'התקפה', photo:'' },
   { name:'דניאל בן עזרא',   pos:'חלוץ / כנף',         cat:'התקפה', photo:'' },
@@ -584,31 +597,35 @@ const LEAGUE = [
 ];
 
 /* ---- פודקאסט "הבה נרגילה" ----
-   embed: קוד ההטמעה מספוטיפיי / יוטיוב / אפל.
-   בספוטיפיי: שיתוף ← Embed ← מעתיקים את כתובת ה־src של ה־iframe.
-   ביוטיוב: https://www.youtube.com/embed/VIDEO_ID
-   אם משאירים ריק — מוצג טקסט "הפרק בדרך".
-   להוספת פרק חדש פשוט מוסיפים שורה למעלה ברשימה.                 */
-const PODCASTS = [
-  { n:10, title:'דביר דמתי מתארח — הפרק ה־10',
-    date:'ראשון', duration:'',
-    desc:'פרק חגיגי עם בלם המאוחדת, דביר "0% כדור, 100% רגל" דמתי. ' +
-         'בפינת "הגרזן" בדקנו כמה פריטי לבוש של קולומביה יש לו בארון, ' +
-         'ומתי בפעם האחרונה הוא נעל נעל שהיא לא בלנדסטון. ' +
-         'לכבוד הפרק העשירי הוגרלו נעלי בלנדסטון חתומות בין חברי "מאוחדת+".',
-    embed:'' }
-];
+   כל עוד הרשימה ריקה — מוצג באתר "פרקים בקרוב".
+   להוספת פרק מוסיפים שורה למעלה ברשימה:
+
+   { n:10, title:'דביר דמתי מתארח', date:'ראשון', duration:'45 דק׳',
+     desc:'תיאור קצר של הפרק.',
+     embed:'https://open.spotify.com/embed/episode/XXXX' }
+
+   embed: בספוטיפיי — שיתוף ← Embed ← מעתיקים את כתובת ה-src מתוך ה-iframe.
+          ביוטיוב — https://www.youtube.com/embed/VIDEO_ID
+   פרק בלי embed יוצג עם הכותרת והתיאור, בלי נגן.                     */
+const PODCASTS = [];
 
 /* ---- גלריה ----
-   שמים את התמונות בתיקייה football/images ומוסיפים שורה לכל אחת,
-   למשל: { src:'images/derby.jpg', caption:'הניצחון בדרבי' } */
+   כל עוד הרשימה ריקה — מוצג באתר "התמונות בדרך".
+
+   איך מוסיפים תמונות:
+   1. שומרים את הקבצים בתיקייה  football/images
+   2. מוחקים את סימני ההערה מהשורות למטה ומתאימים את שמות הקבצים.
+
+   התמונות שמחכות (מהפוסטים באינסטגרם):
+
+   { src:'images/winners-week.jpg',    caption:'הקבוצה המנצחת של השבוע · שניר המצטיין' },
+   { src:'images/last-match.jpg',      caption:'מהמשחק האחרון' },
+   { src:'images/dancing-stars.jpg',   caption:'רוקדים עם כוכבים · כמו ברצלונה 2011' },
+   { src:'images/winners-january.jpg', caption:'הקבוצה המנצחת' },
+   { src:'images/kit-2627.jpg',        caption:'החולצה החדשה לעונת 2026/27' },
+   { src:'images/podcast.jpg',         caption:'מאחורי הקלעים של "הבה נרגילה"' }
+                                                                        */
 const GALLERY = [
-  { src:'', caption:'החולצה החדשה לעונת 2026/27' },
-  { src:'', caption:'הקבוצה המנצחת של השבוע' },
-  { src:'', caption:'מהמשחק האחרון' },
-  { src:'', caption:'שניר המלך — מצטיין המחזור' },
-  { src:'', caption:'ערב משחק תחת הזרקורים' },
-  { src:'', caption:'מאחורי הקלעים של "הבה נרגילה"' }
 ];
 
 /* ---- פוסטים מאינסטגרם ----
@@ -765,50 +782,88 @@ $('.tabs').addEventListener('click', e => {
 });
 
 /* --- פודקאסט --- */
-$('#podList').innerHTML = PODCASTS.map(p => `
-  <article class="pod">
-    <div class="pod-head">
-      <div class="pod-num">#${p.n}</div>
-      <div>
-        <h3>${esc(p.title)}</h3>
-        <p class="meta"><span>${esc(p.date)}</span><span>${esc(p.duration)}</span></p>
-      </div>
-      <button class="pod-play" aria-label="הצגת הפרק">
+if (PODCASTS.length){
+  $('#podList').innerHTML = PODCASTS.map(p => `
+    <article class="pod">
+      <div class="pod-head">
+        <div class="pod-num">#${p.n}</div>
+        <div>
+          <h3>${esc(p.title)}</h3>
+          <p class="meta">${[p.date, p.duration].filter(Boolean)
+            .map(x => `<span>${esc(x)}</span>`).join('')}</p>
+        </div>
+        <button class="pod-play" aria-label="הצגת הפרק">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
                stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
             <path d="M6 9l6 6 6-6"/>
           </svg>
         </button>
-    </div>
-    <div class="pod-body">
-      <p>${esc(p.desc)}</p>
-      ${p.embed
-        ? `<iframe src="${esc(p.embed)}" height="180" loading="lazy"
-             allow="autoplay; clipboard-write; encrypted-media; picture-in-picture"></iframe>`
-        : '<div class="pod-empty">🎧 הפרק יעלה לכאן בקרוב — בינתיים אפשר לשמוע אותו באינסטגרם.</div>'}
-    </div>
-  </article>`).join('');
+      </div>
+      <div class="pod-body">
+        <p>${esc(p.desc)}</p>
+        ${p.embed
+          ? `<iframe src="${esc(p.embed)}" height="180" loading="lazy"
+               allow="autoplay; clipboard-write; encrypted-media; picture-in-picture"></iframe>`
+          : ''}
+      </div>
+    </article>`).join('');
 
-$('#podList').addEventListener('click', e => {
-  const head = e.target.closest('.pod-head');
-  if (head) head.parentElement.classList.toggle('open');
-});
+  $('#podList').addEventListener('click', e => {
+    const head = e.target.closest('.pod-head');
+    if (head) head.parentElement.classList.toggle('open');
+  });
+} else {
+  $('#podList').innerHTML = `
+    <div class="soon">
+      <span class="soon-badge">בקרוב</span>
+      <h3>הפרקים בדרך</h3>
+      <p>"הבה נרגילה" עולה לאוויר בקרוב. עד אז — כל העדכונים באינסטגרם.</p>
+      <a class="btn btn-ghost" href="${esc(TEAM.instagram)}" target="_blank" rel="noopener">
+        📸 לעמוד האינסטגרם
+      </a>
+    </div>`;
+}
 
 /* --- גלריה --- */
-$('#galleryGrid').innerHTML = GALLERY.map((g, i) => `
-  <figure class="shot" data-i="${i}">
-    ${g.src
-      ? `<img src="${esc(g.src)}" alt="${esc(g.caption)}" loading="lazy">`
-      : '<div class="ph">📷</div>'}
-    <figcaption class="cap-txt">${esc(g.caption)}</figcaption>
-  </figure>`).join('');
+const shots = GALLERY.filter(g => g.src);
+
+if (shots.length){
+  $('#galleryGrid').innerHTML = shots.map((g, i) => `
+    <figure class="shot" data-i="${i}">
+      <img src="${esc(g.src)}" alt="${esc(g.caption)}" loading="lazy">
+      <figcaption class="cap-txt">${esc(g.caption)}</figcaption>
+    </figure>`).join('');
+
+  /* תמונה שהקובץ שלה עוד לא הועלה לא תשאיר ריבוע שבור */
+  $$('#galleryGrid img').forEach(img => {
+    img.addEventListener('error', () => {
+      img.closest('.shot').remove();
+      if (!$('#galleryGrid').children.length) galleryEmpty();
+    });
+  });
+} else {
+  galleryEmpty();
+}
+
+function galleryEmpty(){
+  $('#galleryGrid').classList.add('empty');
+  $('#galleryGrid').innerHTML = `
+    <div class="soon">
+      <span class="soon-badge">בקרוב</span>
+      <h3>התמונות בדרך</h3>
+      <p>הרגעים הכי טובים מהמגרש יעלו לכאן. בינתיים הכל נמצא באינסטגרם.</p>
+      <a class="btn btn-ghost" href="${esc(TEAM.instagram)}" target="_blank" rel="noopener">
+        📸 לעמוד האינסטגרם
+      </a>
+    </div>`;
+}
 
 const lb = $('#lightbox');
 $('#galleryGrid').addEventListener('click', e => {
   const fig = e.target.closest('.shot');
   if (!fig) return;
-  const item = GALLERY[+fig.dataset.i];
-  if (!item.src) return;
+  const item = shots[+fig.dataset.i];
+  if (!item) return;
   $('img', lb).src = item.src;
   $('img', lb).alt = item.caption;
   lb.classList.add('on');
