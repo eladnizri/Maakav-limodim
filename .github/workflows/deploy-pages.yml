@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - claude/app-git-pages-deploy-sd073a
+      - claude/practical-bardeen-tkly3y
   workflow_dispatch:
 
 permissions:
