@@ -594,7 +594,8 @@ const TEAM = {
   youtube:   '',                                               // ערוץ יוטיוב (אופציונלי)
   logo:      '',                                               // 'images/logo.png' — הסמל המקורי
 
-  /* לאן מוביל כפתור "העלאת תמונות" שבתחתית הגלריה.
+  /* לאן מוביל כפתור "העלאת תמונות". הקישור נפתח על תיקיית התמונות
+     ב-GitHub, ומשם מעלים דרך Add file ← Upload files.
      branch חייב להיות הענף שממנו האתר מתפרסם בפועל — אחרת התמונות
      יעלו לענף אחר ולא יופיעו באתר החי. */
   upload:    { repo:'eladnizri/Maakav-limodim',
@@ -994,10 +995,13 @@ async function findImage(base){
   return null;
 }
 
+/* מפנה לדף התיקייה ב-GitHub, ומשם Add file ← Upload files.
+   דף ההעלאה הישיר (/upload/) לא מסתדר עם שם ענף שמכיל לוכסן,
+   בעוד שדף התיקייה (/tree/) עובד בכל מקרה. */
 function uploadUrl(){
   const u = TEAM.upload;
   return u && u.repo
-    ? `https://github.com/${u.repo}/upload/${u.branch}/${u.dir}`
+    ? `https://github.com/${u.repo}/tree/${u.branch}/${u.dir}`
     : '';
 }
 
@@ -1013,7 +1017,10 @@ function galleryEmpty(){
         📸 לעמוד האינסטגרם
       </a>
       ${url ? `<a class="btn btn-main" href="${esc(url)}" target="_blank" rel="noopener"
-                 style="margin-inline-start:10px">⬆️ העלאת תמונות</a>` : ''}
+                 style="margin-inline-start:10px">⬆️ העלאת תמונות</a>
+               <p style="margin:16px 0 0;font-size:13px">
+                 נפתחת תיקיית התמונות ב-GitHub — שם לוחצים Add file ← Upload files
+               </p>` : ''}
     </div>`;
 }
 
@@ -1036,7 +1043,8 @@ function uploadLink(){
   if (!url) return;
   $('#uploadHint').innerHTML = `
     <a href="${esc(url)}" target="_blank" rel="noopener">⬆️ העלאת תמונות לגלריה</a>
-    <span>גוררים לשם קבצים בשמות 1.jpg, 2.jpg, 3.jpg … והם יופיעו כאן לבד</span>`;
+    <span>נפתחת תיקיית התמונות ב-GitHub. לוחצים Add file ← Upload files,
+          גוררים קבצים בשמות 1.jpg, 2.jpg, 3.jpg … והם יופיעו כאן לבד</span>`;
 }
 
 /* איתור התמונות: קודם הרשימה הידנית, אחר כך הקבצים הממוספרים */
