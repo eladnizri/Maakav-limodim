@@ -119,6 +119,37 @@ section:nth-of-type(even){background:var(--bg-2)}
 .sec-head h2{margin:0;font-size:clamp(28px,4.6vw,44px);font-weight:900;letter-spacing:-1px}
 .sec-head p{margin:12px 0 0;color:var(--txt-dim);max-width:62ch;line-height:1.6}
 
+/* ===== חדשות ===== */
+.news{display:grid;gap:18px}
+.item{
+  display:grid;grid-template-columns:220px 1fr;gap:22px;align-items:stretch;
+  background:linear-gradient(150deg,var(--card),var(--card-2));
+  border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;transition:.25s;
+}
+.item.no-img{grid-template-columns:1fr}
+.item:hover{border-color:color-mix(in srgb,var(--team-1) 45%,transparent);transform:translateY(-3px)}
+.item .thumb{
+  background:
+    radial-gradient(110% 80% at 40% 0%,color-mix(in srgb,var(--team-2) 20%,transparent),transparent 70%),
+    linear-gradient(150deg,#2a2020,#15100f);
+  min-height:170px;
+}
+.item .thumb img{width:100%;height:100%;object-fit:cover}
+.item .body{padding:22px 24px;display:flex;flex-direction:column;justify-content:center}
+.item .top{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-bottom:10px}
+.item .tag{
+  font-size:11px;font-weight:900;letter-spacing:.6px;padding:4px 11px;border-radius:999px;
+  background:color-mix(in srgb,var(--team-1) 16%,transparent);
+  border:1px solid color-mix(in srgb,var(--team-1) 34%,transparent);color:var(--team-1);
+}
+.item .when{font-size:12.5px;color:var(--txt-dim);font-weight:600}
+.item h3{margin:0;font-size:21px;font-weight:900;line-height:1.25}
+.item p{margin:10px 0 0;color:var(--txt-dim);line-height:1.7;font-size:15px}
+.item .more{
+  margin-top:14px;align-self:flex-start;font-weight:800;font-size:14px;color:var(--team-1);
+  border-bottom:1px dashed color-mix(in srgb,var(--team-1) 50%,transparent);
+}
+
 /* ===== סגל ===== */
 .filters{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:26px}
 .chip{
@@ -262,6 +293,15 @@ tbody tr.us td:first-child{box-shadow:inset 3px 0 0 var(--team-1)}
   position:absolute;inset-inline:0;bottom:0;padding:22px 14px 12px;font-size:13px;font-weight:700;
   background:linear-gradient(transparent,rgba(0,0,0,.85));
 }
+.upload-hint{
+  margin:22px 0 0;display:flex;flex-wrap:wrap;align-items:center;gap:4px 12px;
+  font-size:13.5px;color:var(--txt-dim);
+}
+.upload-hint a{
+  font-weight:800;color:var(--team-1);
+  border-bottom:1px dashed color-mix(in srgb,var(--team-1) 55%,transparent);
+}
+.upload-hint a:hover{color:var(--txt);border-color:var(--txt)}
 .ig{
   margin-top:36px;display:grid;grid-template-columns:1fr;gap:20px;
   background:linear-gradient(135deg,#833ab4,#fd1d1d,#fcb045);padding:2px;border-radius:22px;
@@ -309,6 +349,10 @@ footer .wrap{display:grid;gap:26px;grid-template-columns:1fr auto;align-items:ce
   footer .wrap{grid-template-columns:1fr;justify-items:center;text-align:center}
 }
 @media(max-width:640px){
+  .item{grid-template-columns:1fr}
+  .item .thumb{min-height:190px;aspect-ratio:16/9}
+  .item .body{padding:18px}
+  .item h3{font-size:18px}
   .squad{grid-template-columns:repeat(2,1fr);gap:12px}
   .player .photo{aspect-ratio:4/5}
   .player .shirt{font-size:30px}
@@ -391,6 +435,7 @@ footer .wrap{display:grid;gap:26px;grid-template-columns:1fr auto;align-items:ce
       <span data-team-name>המאוחדת</span>
     </a>
     <nav class="nav">
+      <a href="#news">חדשות</a>
       <a href="#squad">הסגל</a>
       <a href="#table">טבלה</a>
       <a href="#podcast">פודקאסט</a>
@@ -423,6 +468,18 @@ footer .wrap{display:grid;gap:26px;grid-template-columns:1fr auto;align-items:ce
       <div class="stats" id="statsRow"></div>
     </div>
   </div>
+
+  <!-- ===== חדשות ===== -->
+  <section id="news">
+    <div class="wrap">
+      <div class="sec-head">
+        <p class="eyebrow">חדשות</p>
+        <h2>מה חדש במאוחדת</h2>
+        <p>עדכונים, הכרזות וכל מה שקורה סביב הקבוצה.</p>
+      </div>
+      <div class="news" id="newsList"></div>
+    </div>
+  </section>
 
   <!-- ===== סגל ===== -->
   <section id="squad">
@@ -489,6 +546,7 @@ footer .wrap{display:grid;gap:26px;grid-template-columns:1fr auto;align-items:ce
         <p>התמונות הכי טובות מהעונה. לחיצה על תמונה פותחת אותה בגדול.</p>
       </div>
       <div class="gallery" id="galleryGrid"></div>
+      <p class="upload-hint" id="uploadHint"></p>
 
       <div class="ig" id="follow">
         <div class="ig-inner">
@@ -539,6 +597,12 @@ const TEAM = {
   whatsapp:  '',                                               // קישור לקבוצת וואטסאפ (אופציונלי)
   youtube:   '',                                               // ערוץ יוטיוב (אופציונלי)
   logo:      '',                                               // 'images/logo.png' — הסמל המקורי
+
+  /* לאן מוביל כפתור "העלאת תמונות" שבתחתית הגלריה.
+     branch = הענף שאליו מעלים. אחרי מיזוג ל-main משנים כאן ל-'main'. */
+  upload:    { repo:'eladnizri/Maakav-limodim',
+               branch:'claude/practical-bardeen-tkly3y',
+               dir:'football/images' },
   colors:    { main:'#e6b647', second:'#cf2033' }              // זהב ואדום, לפי הסמל
 };
 
@@ -552,6 +616,25 @@ const TEAM = {
      { value:'96',   label:'שערים העונה' }
    ];                                                              */
 const STATS = [];
+
+/* ---- חדשות ----
+   העדכון החדש ביותר נכנס למעלה ברשימה.
+
+   date  = תאריך כפי שיוצג. טקסט חופשי.
+   tag   = תווית קטנה: 'הכרזה' / 'משחק' / 'פודקאסט' / 'ציוד' וכו'.
+   text  = גוף העדכון.
+   image = אופציונלי, למשל 'images/news-kit.jpg'. בלי תמונה — הכרטיס
+           פשוט נפרס על כל הרוחב.
+   link  = אופציונלי, קישור ל"קראו עוד" (למשל לפוסט באינסטגרם).
+
+   כשהרשימה ריקה מוצג באתר כרטיס "בקרוב".                              */
+const NEWS = [
+  { date:'לפני פתיחת העונה', tag:'הכרזה',
+    title:'החולצה החדשה לעונת 2026/27 נחשפה',
+    text:'אוהדים יקרים, אנחנו בישורת האחרונה לפני פתיחת הליגה לשנת 2026/27. ' +
+         'החולצה החדשה כבר כאן — לבנה, עם הסמל על החזה ודגל ישראל על הגב.',
+    image:'', link:'' }
+];
 
 /* ---- הסגל ----
    pos    = העמדה כפי שהיא מוצגת על הכרטיס (טקסט חופשי).
@@ -610,21 +693,25 @@ const LEAGUE = [
 const PODCASTS = [];
 
 /* ---- גלריה ----
-   כל עוד הרשימה ריקה — מוצג באתר "התמונות בדרך".
 
-   איך מוסיפים תמונות:
-   1. שומרים את הקבצים בתיקייה  football/images
-   2. מוחקים את סימני ההערה מהשורות למטה ומתאימים את שמות הקבצים.
+   הדרך הקלה, בלי לגעת בקוד:
+   לוחצים על "העלאת תמונות" שבתחתית אזור הגלריה באתר, גוררים לשם את
+   הקבצים בשמות 1.jpg, 2.jpg, 3.jpg ... והם מופיעים באתר לבד.
+   האתר בודק לבד אילו מהמספרים קיימים ומציג רק אותם.
+   נתמכים גם png,‏ jpeg ו-webp.
 
-   התמונות שמחכות (מהפוסטים באינסטגרם):
+   GALLERY_SLOTS = עד כמה מספרים לבדוק. להעלאת יותר תמונות מגדילים.   */
+const GALLERY_SLOTS = 24;
 
-   { src:'images/winners-week.jpg',    caption:'הקבוצה המנצחת של השבוע · שניר המצטיין' },
-   { src:'images/last-match.jpg',      caption:'מהמשחק האחרון' },
-   { src:'images/dancing-stars.jpg',   caption:'רוקדים עם כוכבים · כמו ברצלונה 2011' },
-   { src:'images/winners-january.jpg', caption:'הקבוצה המנצחת' },
-   { src:'images/kit-2627.jpg',        caption:'החולצה החדשה לעונת 2026/27' },
-   { src:'images/podcast.jpg',         caption:'מאחורי הקלעים של "הבה נרגילה"' }
-                                                                        */
+/* כותרות לתמונות, לפי מספר הקובץ. אופציונלי —
+   תמונה בלי כותרת פשוט תוצג בלי כיתוב.                                */
+const GALLERY_CAPTIONS = {
+  // 1: 'הקבוצה המנצחת של השבוע',
+  // 2: 'החולצה החדשה לעונת 2026/27',
+};
+
+/* רשימה ידנית, למי שמעדיף שמות קבצים משלו במקום מספרים.
+   { src:'images/derby.jpg', caption:'הניצחון בדרבי' }                  */
 const GALLERY = [
 ];
 
@@ -677,6 +764,44 @@ const statsData = STATS.length ? STATS : autoStats();
 $('#statsRow').style.gridTemplateColumns = `repeat(${Math.min(statsData.length, 4)},1fr)`;
 $('#statsRow').innerHTML = statsData
   .map(s => `<div class="stat"><b>${esc(s.value)}</b><span>${esc(s.label)}</span></div>`).join('');
+
+/* --- חדשות --- */
+if (NEWS.length){
+  $('#newsList').innerHTML = NEWS.map(item => `
+    <article class="item${item.image ? '' : ' no-img'}">
+      ${item.image ? `<div class="thumb"><img src="${esc(item.image)}"
+           alt="${esc(item.title)}" loading="lazy"></div>` : ''}
+      <div class="body">
+        <div class="top">
+          ${item.tag  ? `<span class="tag">${esc(item.tag)}</span>` : ''}
+          ${item.date ? `<span class="when">${esc(item.date)}</span>` : ''}
+        </div>
+        <h3>${esc(item.title)}</h3>
+        ${item.text ? `<p>${esc(item.text)}</p>` : ''}
+        ${item.link ? `<a class="more" href="${esc(item.link)}"
+             target="_blank" rel="noopener">קראו עוד ←</a>` : ''}
+      </div>
+    </article>`).join('');
+
+  /* עדכון שהתמונה שלו עוד לא הועלתה יוצג בלי תמונה, לא עם ריבוע שבור */
+  $$('#newsList .thumb img').forEach(img => {
+    img.addEventListener('error', () => {
+      const card = img.closest('.item');
+      img.closest('.thumb').remove();
+      card.classList.add('no-img');
+    });
+  });
+} else {
+  $('#newsList').innerHTML = `
+    <div class="soon">
+      <span class="soon-badge">בקרוב</span>
+      <h3>העדכונים בדרך</h3>
+      <p>כל ההכרזות והחדשות של הקבוצה יופיעו כאן.</p>
+      <a class="btn btn-ghost" href="${esc(TEAM.instagram)}" target="_blank" rel="noopener">
+        📸 לעמוד האינסטגרם
+      </a>
+    </div>`;
+}
 
 /* --- סגל --- */
 /* מציגים רק צ'יפים של עמדות שבאמת קיימות בסגל */
@@ -825,27 +950,35 @@ if (PODCASTS.length){
 }
 
 /* --- גלריה --- */
-const shots = GALLERY.filter(g => g.src);
+const EXTS = ['jpg', 'jpeg', 'png', 'webp'];
+let shots = [];
 
-if (shots.length){
-  $('#galleryGrid').innerHTML = shots.map((g, i) => `
-    <figure class="shot" data-i="${i}">
-      <img src="${esc(g.src)}" alt="${esc(g.caption)}" loading="lazy">
-      <figcaption class="cap-txt">${esc(g.caption)}</figcaption>
-    </figure>`).join('');
+/* בודק אם קובץ תמונה קיים בפועל */
+const probe = src => new Promise(done => {
+  const img = new Image();
+  img.onload  = () => done(src);
+  img.onerror = () => done(null);
+  img.src = src;
+});
 
-  /* תמונה שהקובץ שלה עוד לא הועלה לא תשאיר ריבוע שבור */
-  $$('#galleryGrid img').forEach(img => {
-    img.addEventListener('error', () => {
-      img.closest('.shot').remove();
-      if (!$('#galleryGrid').children.length) galleryEmpty();
-    });
-  });
-} else {
-  galleryEmpty();
+/* מנסה את הסיומות אחת אחרי השנייה עד שאחת נטענת */
+async function findImage(base){
+  for (const ext of EXTS){
+    const hit = await probe(`${base}.${ext}`);
+    if (hit) return hit;
+  }
+  return null;
+}
+
+function uploadUrl(){
+  const u = TEAM.upload;
+  return u && u.repo
+    ? `https://github.com/${u.repo}/upload/${u.branch}/${u.dir}`
+    : '';
 }
 
 function galleryEmpty(){
+  const url = uploadUrl();
   $('#galleryGrid').classList.add('empty');
   $('#galleryGrid').innerHTML = `
     <div class="soon">
@@ -855,8 +988,46 @@ function galleryEmpty(){
       <a class="btn btn-ghost" href="${esc(TEAM.instagram)}" target="_blank" rel="noopener">
         📸 לעמוד האינסטגרם
       </a>
+      ${url ? `<a class="btn btn-main" href="${esc(url)}" target="_blank" rel="noopener"
+                 style="margin-inline-start:10px">⬆️ העלאת תמונות</a>` : ''}
     </div>`;
 }
+
+function renderGallery(){
+  if (!shots.length) return galleryEmpty();   /* הכרטיס הריק כבר מכיל כפתור העלאה */
+
+  uploadLink();
+
+  $('#galleryGrid').classList.remove('empty');
+  $('#galleryGrid').innerHTML = shots.map((g, i) => `
+    <figure class="shot" data-i="${i}">
+      <img src="${esc(g.src)}" alt="${esc(g.caption || 'תמונה מהמגרש')}" loading="lazy">
+      ${g.caption ? `<figcaption class="cap-txt">${esc(g.caption)}</figcaption>` : ''}
+    </figure>`).join('');
+}
+
+/* קישור ההעלאה שמתחת לגלריה */
+function uploadLink(){
+  const url = uploadUrl();
+  if (!url) return;
+  $('#uploadHint').innerHTML = `
+    <a href="${esc(url)}" target="_blank" rel="noopener">⬆️ העלאת תמונות לגלריה</a>
+    <span>גוררים לשם קבצים בשמות 1.jpg, 2.jpg, 3.jpg … והם יופיעו כאן לבד</span>`;
+}
+
+/* איתור התמונות: קודם הרשימה הידנית, אחר כך הקבצים הממוספרים */
+(async function loadGallery(){
+  const numbered = await Promise.all(
+    Array.from({ length: GALLERY_SLOTS }, (_, i) => findImage(`images/${i + 1}`))
+  );
+  shots = [
+    ...GALLERY.filter(g => g.src),
+    ...numbered
+      .map((src, i) => src ? { src, caption: GALLERY_CAPTIONS[i + 1] || '' } : null)
+      .filter(Boolean)
+  ];
+  renderGallery();
+})();
 
 const lb = $('#lightbox');
 $('#galleryGrid').addEventListener('click', e => {
@@ -865,7 +1036,7 @@ $('#galleryGrid').addEventListener('click', e => {
   const item = shots[+fig.dataset.i];
   if (!item) return;
   $('img', lb).src = item.src;
-  $('img', lb).alt = item.caption;
+  $('img', lb).alt = item.caption || '';
   lb.classList.add('on');
 });
 lb.addEventListener('click', () => lb.classList.remove('on'));
