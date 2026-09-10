@@ -3,25 +3,26 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>מכבי חברים — קבוצת הכדורגל השכונתית</title>
+<title>המאוחדת — קבוצת הכדורגל השכונתית</title>
 <meta name="description" content="האתר הרשמי של קבוצת הכדורגל החברית — סגל, טבלה, מלך שערים, פודקאסט וגלריה.">
-<meta name="theme-color" content="#0b1220">
+<meta name="theme-color" content="#0d0b0b">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;600;800;900&display=swap" rel="stylesheet">
 <style>
 :root{
   /* ==== צבעי הקבוצה — שנה כאן ותשנה את כל האתר ==== */
-  --team-1:#00d47e;      /* צבע ראשי */
-  --team-2:#ffd23f;      /* צבע משני */
+  --team-1:#e6b647;      /* צבע ראשי — הזהב מהסמל */
+  --team-2:#cf2033;      /* צבע משני — האדום מהסמל */
+  --ink:#241800;         /* צבע הטקסט על רקע בצבע הקבוצה */
 
-  --bg:#0b1220;
-  --bg-2:#111a2c;
-  --card:#16213a;
-  --card-2:#1c2a47;
+  --bg:#0d0b0b;
+  --bg-2:#141010;
+  --card:#1d1716;
+  --card-2:#271e1c;
   --line:rgba(255,255,255,.10);
-  --txt:#eef3fb;
-  --txt-dim:#9fb0cc;
+  --txt:#f5efe8;
+  --txt-dim:#b3a49a;
   --radius:18px;
   --shadow:0 18px 50px rgba(0,0,0,.45);
   --max:1180px;
@@ -42,7 +43,7 @@ button{font-family:inherit}
 /* ===== כותרת עליונה ===== */
 .topbar{
   position:sticky;top:0;z-index:50;
-  background:rgba(11,18,32,.82);backdrop-filter:blur(14px);
+  background:rgba(13,11,11,.85);backdrop-filter:blur(14px);
   border-bottom:1px solid var(--line);
 }
 .topbar .wrap{display:flex;align-items:center;gap:18px;height:64px}
@@ -55,7 +56,7 @@ button{font-family:inherit}
   color:var(--txt-dim);white-space:nowrap;transition:.2s;
 }
 .nav a:hover{color:var(--txt);background:rgba(255,255,255,.06)}
-.nav a.on{color:#04140c;background:var(--team-1)}
+.nav a.on{color:var(--ink);background:var(--team-1)}
 
 /* ===== היירו ===== */
 .hero{position:relative;padding:70px 0 60px;overflow:hidden}
@@ -75,7 +76,9 @@ button{font-family:inherit}
 .crest-lg{width:170px;height:170px;filter:drop-shadow(0 14px 30px rgba(0,0,0,.5))}
 .kicker{
   display:inline-flex;align-items:center;gap:8px;font-weight:700;font-size:13px;letter-spacing:.4px;
-  color:var(--team-2);background:rgba(255,210,63,.10);border:1px solid rgba(255,210,63,.28);
+  color:var(--team-1);
+  background:color-mix(in srgb,var(--team-1) 12%,transparent);
+  border:1px solid color-mix(in srgb,var(--team-1) 32%,transparent);
   padding:6px 14px;border-radius:999px;margin:0 0 14px;
 }
 .hero h1{margin:0;font-size:clamp(38px,7vw,72px);line-height:.98;font-weight:900;letter-spacing:-1.5px}
@@ -89,7 +92,7 @@ button{font-family:inherit}
   display:inline-flex;align-items:center;gap:8px;padding:13px 24px;border-radius:999px;
   font-weight:800;font-size:15px;border:1px solid transparent;cursor:pointer;transition:.2s;
 }
-.btn-main{background:var(--team-1);color:#04140c}
+.btn-main{background:var(--team-1);color:var(--ink)}
 .btn-main:hover{transform:translateY(-2px);box-shadow:0 12px 28px color-mix(in srgb,var(--team-1) 35%,transparent)}
 .btn-ghost{background:rgba(255,255,255,.05);border-color:var(--line);color:var(--txt)}
 .btn-ghost:hover{background:rgba(255,255,255,.11)}
@@ -123,7 +126,7 @@ section:nth-of-type(even){background:var(--bg-2)}
   background:rgba(255,255,255,.04);color:var(--txt-dim);font-weight:700;font-size:14px;cursor:pointer;transition:.2s;
 }
 .chip:hover{color:var(--txt)}
-.chip.on{background:var(--team-1);border-color:var(--team-1);color:#04140c}
+.chip.on{background:var(--team-1);border-color:var(--team-1);color:var(--ink)}
 .squad{display:grid;grid-template-columns:repeat(auto-fill,minmax(215px,1fr));gap:18px}
 .player{
   position:relative;background:linear-gradient(165deg,var(--card),var(--card-2));
@@ -131,26 +134,37 @@ section:nth-of-type(even){background:var(--bg-2)}
 }
 .player:hover{transform:translateY(-5px);border-color:color-mix(in srgb,var(--team-1) 55%,transparent);box-shadow:var(--shadow)}
 .player .shirt{
-  position:absolute;top:12px;inset-inline-start:14px;font-size:42px;font-weight:900;
-  color:rgba(255,255,255,.09);line-height:1;
+  position:absolute;z-index:1;top:10px;inset-inline-start:14px;font-size:42px;font-weight:900;
+  color:rgba(255,255,255,.12);line-height:1;
 }
 .player .photo{
-  aspect-ratio:1/1;background:linear-gradient(150deg,color-mix(in srgb,var(--team-1) 30%,var(--card-2)),var(--card-2));
-  display:grid;place-items:center;overflow:hidden;
+  position:relative;aspect-ratio:1/1;display:grid;place-items:center;overflow:hidden;
+  background:
+    radial-gradient(120% 90% at 70% 0%,color-mix(in srgb,var(--team-2) 22%,transparent),transparent 70%),
+    linear-gradient(158deg,#2a2020,#15100f);
+}
+.player .photo::after{
+  content:'';position:absolute;inset:0;
+  background:repeating-linear-gradient(115deg,transparent 0 22px,rgba(255,255,255,.022) 22px 44px);
 }
 .player .photo img{width:100%;height:100%;object-fit:cover}
-.player .initials{font-size:46px;font-weight:900;color:rgba(255,255,255,.30)}
+.player .initials{position:relative;font-size:46px;font-weight:900;
+  color:color-mix(in srgb,var(--team-1) 45%,transparent);letter-spacing:1px}
 .player .info{padding:16px}
 .player .info h3{margin:0;font-size:18px;font-weight:800}
-.player .pos{display:inline-block;margin-top:6px;font-size:12px;font-weight:700;color:var(--team-2)}
+.player .pos{display:inline-block;margin-top:6px;font-size:12.5px;font-weight:700;color:var(--team-1)}
 .player .nums{display:flex;gap:16px;margin-top:14px;padding-top:14px;border-top:1px solid var(--line)}
 .player .nums div{text-align:center;flex:1}
 .player .nums b{display:block;font-size:19px;font-weight:900}
 .player .nums span{font-size:11px;color:var(--txt-dim)}
-.cap{
-  position:absolute;top:12px;inset-inline-end:12px;background:var(--team-2);color:#241a00;
+.badge{
+  position:absolute;z-index:1;top:12px;inset-inline-end:12px;
   font-size:11px;font-weight:900;padding:4px 9px;border-radius:999px;
 }
+.cap{background:var(--team-1);color:var(--ink)}
+.inj{background:var(--team-2);color:#fff}
+.player.out .photo{filter:grayscale(.65)}
+.player .info h3{min-height:0}
 
 /* ===== טבלה + מלך שערים ===== */
 .tabs{display:flex;gap:8px;margin-bottom:22px;flex-wrap:wrap}
@@ -170,11 +184,11 @@ tbody tr.us td:first-child{box-shadow:inset 3px 0 0 var(--team-1)}
 .form{display:inline-flex;gap:4px}
 .form i{
   width:20px;height:20px;border-radius:6px;font-style:normal;font-size:11px;font-weight:900;
-  display:grid;place-items:center;color:#04140c;
+  display:grid;place-items:center;color:var(--ink);
 }
 .form i.W{background:var(--team-1)}
-.form i.D{background:#8fa0bd}
-.form i.L{background:#ff6b6b;color:#2b0000}
+.form i.D{background:#9c8f86}
+.form i.L{background:#8a2b33;color:#ffd9dc}
 
 .scorers{display:grid;gap:12px}
 .scorer{
@@ -183,7 +197,7 @@ tbody tr.us td:first-child{box-shadow:inset 3px 0 0 var(--team-1)}
 }
 .scorer:first-child{border-color:color-mix(in srgb,var(--team-2) 55%,transparent);background:linear-gradient(90deg,color-mix(in srgb,var(--team-2) 12%,var(--card)),var(--card))}
 .scorer .medal{font-size:22px;font-weight:900;text-align:center;color:var(--txt-dim)}
-.scorer:first-child .medal{color:var(--team-2)}
+.scorer:first-child .medal{color:var(--team-1)}
 .scorer h4{margin:0;font-size:16px;font-weight:800}
 .bar{height:7px;border-radius:99px;background:rgba(255,255,255,.08);margin-top:8px;overflow:hidden}
 .bar i{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,var(--team-1),var(--team-2))}
@@ -200,7 +214,7 @@ tbody tr.us td:first-child{box-shadow:inset 3px 0 0 var(--team-1)}
 .pod-head{display:grid;grid-template-columns:auto 1fr auto;gap:18px;align-items:center;padding:20px;cursor:pointer}
 .pod-num{
   width:52px;height:52px;border-radius:14px;display:grid;place-items:center;flex:none;
-  background:linear-gradient(140deg,var(--team-1),var(--team-2));color:#04140c;font-weight:900;font-size:18px;
+  background:linear-gradient(140deg,var(--team-1),var(--team-2));color:var(--ink);font-weight:900;font-size:18px;
 }
 .pod h3{margin:0;font-size:18px;font-weight:800}
 .pod .meta{margin:6px 0 0;font-size:13px;color:var(--txt-dim)}
@@ -209,7 +223,7 @@ tbody tr.us td:first-child{box-shadow:inset 3px 0 0 var(--team-1)}
   width:44px;height:44px;border-radius:50%;border:1px solid var(--line);background:rgba(255,255,255,.05);
   display:grid;place-items:center;color:var(--txt);cursor:pointer;flex:none;transition:.2s;
 }
-.pod.open .pod-play{background:var(--team-1);color:#04140c;transform:rotate(180deg)}
+.pod.open .pod-play{background:var(--team-1);color:var(--ink);transform:rotate(180deg)}
 .pod-body{display:none;padding:0 20px 20px}
 .pod.open .pod-body{display:block}
 .pod-body p{margin:0 0 14px;color:var(--txt-dim);line-height:1.7}
@@ -223,7 +237,10 @@ tbody tr.us td:first-child{box-shadow:inset 3px 0 0 var(--team-1)}
 .gallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px}
 .shot{
   position:relative;aspect-ratio:4/3;border-radius:14px;overflow:hidden;cursor:pointer;
-  border:1px solid var(--line);background:linear-gradient(140deg,var(--card-2),var(--card));
+  border:1px solid var(--line);
+  background:
+    radial-gradient(110% 80% at 30% 0%,color-mix(in srgb,var(--team-1) 12%,transparent),transparent 70%),
+    linear-gradient(150deg,#241c1a,#15100f);
 }
 .shot img{width:100%;height:100%;object-fit:cover;transition:.4s}
 .shot:hover img{transform:scale(1.07)}
@@ -246,7 +263,7 @@ tbody tr.us td:first-child{box-shadow:inset 3px 0 0 var(--team-1)}
 
 /* ===== לייטבוקס ===== */
 .lightbox{
-  position:fixed;inset:0;z-index:100;background:rgba(4,8,16,.94);
+  position:fixed;inset:0;z-index:100;background:rgba(6,4,4,.95);
   display:none;place-items:center;padding:24px;
 }
 .lightbox.on{display:grid}
@@ -257,7 +274,7 @@ tbody tr.us td:first-child{box-shadow:inset 3px 0 0 var(--team-1)}
 }
 
 /* ===== פוטר ===== */
-footer{background:#070c16;padding:50px 0 34px;border-top:1px solid var(--line)}
+footer{background:#070505;padding:50px 0 34px;border-top:1px solid var(--line)}
 footer .wrap{display:grid;gap:26px;grid-template-columns:1fr auto;align-items:center}
 .f-brand{display:flex;align-items:center;gap:12px;font-weight:900;font-size:20px}
 .f-links{display:flex;gap:10px}
@@ -265,7 +282,7 @@ footer .wrap{display:grid;gap:26px;grid-template-columns:1fr auto;align-items:ce
   width:42px;height:42px;border-radius:50%;background:rgba(255,255,255,.06);border:1px solid var(--line);
   display:grid;place-items:center;transition:.2s;
 }
-.f-links a:hover{background:var(--team-1);color:#04140c;transform:translateY(-3px)}
+.f-links a:hover{background:var(--team-1);color:var(--ink);transform:translateY(-3px)}
 .copy{grid-column:1/-1;padding-top:22px;border-top:1px solid var(--line);color:var(--txt-dim);font-size:13px}
 
 @media(max-width:820px){
@@ -299,22 +316,58 @@ footer .wrap{display:grid;gap:26px;grid-template-columns:1fr auto;align-items:ce
 </head>
 <body>
 
-<!-- ===== סמל הקבוצה (SVG) — להחלפה בסמל אמיתי ===== -->
+<!-- ===== סמל הקבוצה =====
+     זו גרסת SVG בהשראת הסמל האמיתי (מגן שחור־אדום, כוכבים, כדור, נרגילה וסרט זהב).
+     כדי להשתמש בסמל המקורי: שומרים אותו בתור football/images/logo.png
+     וממלאים למטה TEAM.logo = 'images/logo.png' — והוא יחליף את זה אוטומטית. -->
 <svg width="0" height="0" aria-hidden="true" focusable="false" style="position:absolute">
-  <symbol id="crest" viewBox="0 0 100 110">
-    <path d="M50 2 6 18v40c0 27 19 43 44 50 25-7 44-23 44-50V18z"
-          fill="url(#cg)" stroke="rgba(255,255,255,.35)" stroke-width="2.5"/>
-    <path d="M50 14 18 26v32c0 20 14 32 32 38 18-6 32-18 32-38V26z" fill="rgba(0,0,0,.28)"/>
-    <circle cx="50" cy="52" r="15" fill="#fff"/>
-    <path d="M50 40l5.5 4-2 6.5h-7L44.5 44z" fill="#0b1220"/>
-    <path d="M39 49l-4.5 3.5 2 6L43 60l3.5-5zM61 49l4.5 3.5-2 6L57 60l-3.5-5z" fill="#0b1220"/>
-    <path d="M46.5 62l-2 5L50 70l5.5-3-2-5z" fill="#0b1220"/>
+  <symbol id="crest" viewBox="0 0 120 132">
     <defs>
-      <linearGradient id="cg" x1="0" y1="0" x2="1" y2="1">
-        <stop offset="0" stop-color="var(--team-1)"/>
-        <stop offset="1" stop-color="var(--team-2)"/>
-      </linearGradient>
+      <clipPath id="shieldClip">
+        <path d="M60 5 112 19v50c0 31-23 48-52 58C31 117 8 100 8 69V19z"/>
+      </clipPath>
     </defs>
+
+    <!-- גוף המגן: חצי שחור, חצי אדום -->
+    <g clip-path="url(#shieldClip)">
+      <rect x="0" y="0" width="60" height="132" fill="#141110"/>
+      <rect x="60" y="0" width="60" height="132" fill="var(--team-2)"/>
+    </g>
+    <path d="M60 5 112 19v50c0 31-23 48-52 58C31 117 8 100 8 69V19z"
+          fill="none" stroke="var(--team-1)" stroke-width="5"/>
+    <path d="M60 12 105 24v45c0 27-20 42-45 50C35 111 15 96 15 69V24z"
+          fill="none" stroke="rgba(0,0,0,.55)" stroke-width="2"/>
+
+    <!-- כוכבים בצד השחור -->
+    <g fill="#fff">
+      <path d="M27 30l1.8 4.2 4.2.4-3.2 2.9.9 4.3L27 39.6l-3.7 2.2.9-4.3-3.2-2.9 4.2-.4z"/>
+      <path d="M40 46l1.3 3 3 .3-2.3 2 .6 3.1L40 52.9 37.4 54.4l.6-3.1-2.3-2 3-.3z"/>
+      <path d="M22 52l1.3 3 3 .3-2.3 2 .6 3.1L22 58.9l-2.6 1.5.6-3.1-2.3-2 3-.3z"/>
+      <path d="M33 63l1.1 2.4 2.6.3-1.9 1.7.5 2.6-2.3-1.3-2.3 1.3.5-2.6-1.9-1.7 2.6-.3z"/>
+    </g>
+
+    <!-- נרגילה בצד האדום -->
+    <g fill="var(--team-1)">
+      <ellipse cx="87" cy="63" rx="9" ry="11"/>
+      <rect x="84.6" y="38" width="4.8" height="24" rx="1.6"/>
+      <rect x="81.5" y="33.5" width="11" height="4" rx="1.6"/>
+      <path d="M83.4 26h7.2l-1 7h-5.2z"/>
+      <path d="M89 45c7 1 10 5 9.4 11-.5 4.6-3.6 6.6-6.6 6.3l.5-3.4c1.6.2 3-.8 3.3-3.3.4-3.7-1.6-6-7-7z"/>
+    </g>
+
+    <!-- כדור במרכז -->
+    <circle cx="60" cy="52" r="15.5" fill="#fff" stroke="#141110" stroke-width="1.5"/>
+    <g fill="#141110">
+      <path d="M60 42.5l5.4 3.9-2 6.4h-6.8l-2-6.4z"/>
+      <path d="M49.6 50.6l-4 3.6 2.5 5.6 4.6-.9 1.6-4.9zM70.4 50.6l4 3.6-2.5 5.6-4.6-.9-1.6-4.9z"/>
+      <path d="M55.6 60.4l-1.4 4.6 5.8 2.8 5.8-2.8-1.4-4.6z"/>
+    </g>
+
+    <!-- סרט הזהב עם השם -->
+    <path d="M8 88h104l-8 11 8 11H8l8-11z" fill="var(--team-1)" stroke="#141110" stroke-width="2.5"/>
+    <text x="60" y="103.5" text-anchor="middle" direction="rtl"
+          font-family="Heebo, Arial, sans-serif" font-size="15" font-weight="900"
+          fill="#141110" letter-spacing="0.5">המאוחדת</text>
   </symbol>
 </svg>
 
@@ -322,7 +375,7 @@ footer .wrap{display:grid;gap:26px;grid-template-columns:1fr auto;align-items:ce
   <div class="wrap">
     <a class="brand" href="#top">
       <svg class="crest-sm"><use href="#crest"/></svg>
-      <span data-team-name>מכבי חברים</span>
+      <span data-team-name>המאוחדת</span>
     </a>
     <nav class="nav">
       <a href="#squad">הסגל</a>
@@ -341,8 +394,8 @@ footer .wrap{display:grid;gap:26px;grid-template-columns:1fr auto;align-items:ce
     <div class="wrap">
       <svg class="crest-lg"><use href="#crest"/></svg>
       <div>
-        <p class="kicker">⚽ כדורגל חברים · כל שבת ב־20:00</p>
-        <h1>לא ליגת האלופות.<br><span data-team-name>מכבי חברים</span></h1>
+        <p class="kicker">⚽ עונת 2026/27 · בישורת האחרונה לפני פתיחת הליגה</p>
+        <h1>לא ליגת האלופות.<br><span data-team-name>המאוחדת</span></h1>
         <p class="lead" data-team-tagline>
           קבוצה שכונתית שמשחקת בשביל הכיף, הבירה שאחרי והצילומים שנשארים.
           כאן תמצאו את הסגל, הטבלה, מלך השערים והפודקאסט שלנו.
@@ -364,7 +417,7 @@ footer .wrap{display:grid;gap:26px;grid-template-columns:1fr auto;align-items:ce
       <div class="sec-head">
         <p class="eyebrow">הסגל</p>
         <h2>מי לובש את החולצה</h2>
-        <p>כל השחקנים שרשומים לעונה — עם המספר, העמדה והסטטיסטיקה האישית.</p>
+        <p>כל השחקנים שרשומים לעונה, מסודרים לפי עמדות. אפשר לסנן לפי הגנה, קישור והתקפה.</p>
       </div>
       <div class="filters" id="posFilters"></div>
       <div class="squad" id="squadGrid"></div>
@@ -377,7 +430,7 @@ footer .wrap{display:grid;gap:26px;grid-template-columns:1fr auto;align-items:ce
       <div class="sec-head">
         <p class="eyebrow">העונה</p>
         <h2>טבלה ומלך שערים</h2>
-        <p>המצב המעודכן בליגה הפנימית, ומי מוביל את מרוץ הבועטים.</p>
+        <p>המצב המעודכן בליגה, ומי מוביל את מרוץ הבועטים של הקבוצה.</p>
       </div>
       <div class="tabs">
         <button class="chip on" data-tab="league">טבלת הליגה</button>
@@ -407,8 +460,8 @@ footer .wrap{display:grid;gap:26px;grid-template-columns:1fr auto;align-items:ce
     <div class="wrap">
       <div class="sec-head">
         <p class="eyebrow">🎙️ פינת הפודקאסטים</p>
-        <h2>מה שקורה אחרי המשחק</h2>
-        <p>סיכומים, ויכוחים על פנדלים שלא היו, וראיונות עם השחקנים. פרק חדש אחרי כל מחזור.</p>
+        <h2>הבה נרגילה</h2>
+        <p>הפודקאסט של המאוחדת. פרק חדש בימי ראשון, עם אורחים מהקבוצה, פינות קבועות והמון דיבורים לא במקום. זמין בכל הפלטפורמות.</p>
       </div>
       <div class="pods" id="podList"></div>
     </div>
@@ -443,11 +496,11 @@ footer .wrap{display:grid;gap:26px;grid-template-columns:1fr auto;align-items:ce
   <div class="wrap">
     <div class="f-brand">
       <svg class="crest-sm"><use href="#crest"/></svg>
-      <span data-team-name>מכבי חברים</span>
+      <span data-team-name>המאוחדת</span>
     </div>
     <div class="f-links" id="footLinks"></div>
     <div class="copy">
-      © <span id="year"></span> <span data-team-name>מכבי חברים</span> · נבנה באהבה ובלי תקציב ·
+      © <span id="year"></span> <span data-team-name>המאוחדת</span> · נבנה באהבה ובלי תקציב ·
       רוצים להצטרף לקבוצה? דברו איתנו באינסטגרם.
     </div>
   </div>
@@ -466,46 +519,63 @@ footer .wrap{display:grid;gap:26px;grid-template-columns:1fr auto;align-items:ce
    ===================================================================== */
 
 const TEAM = {
-  name:      'מכבי חברים',                       // שם הקבוצה
-  tagline:   'קבוצה שכונתית שמשחקת בשביל הכיף, הבירה שאחרי והצילומים שנשארים. ' +
-             'כאן תמצאו את הסגל, הטבלה, מלך השערים והפודקאסט שלנו.',
-  instagram: 'https://instagram.com/',            // הקישור לעמוד האינסטגרם
-  whatsapp:  '',                                  // קישור לקבוצת וואטסאפ (אופציונלי)
-  youtube:   '',                                  // ערוץ יוטיוב (אופציונלי)
-  colors:    { main:'#00d47e', second:'#ffd23f' } // צבעי הקבוצה
+  name:      'המאוחדת',                                        // שם הקבוצה
+  tagline:   'קבוצת הכדורגל של החברים. הסגל, הליגה, הגלריה ' +
+             'והפודקאסט "הבה נרגילה" — הכל במקום אחד. 🖤🧡❤️',
+  instagram: 'https://www.instagram.com/hameuhedet.football_club/',
+  whatsapp:  '',                                               // קישור לקבוצת וואטסאפ (אופציונלי)
+  youtube:   '',                                               // ערוץ יוטיוב (אופציונלי)
+  logo:      '',                                               // 'images/logo.png' — הסמל המקורי
+  colors:    { main:'#e6b647', second:'#cf2033' }              // זהב ואדום, לפי הסמל
 };
 
-/* מספרים גדולים בראש העמוד */
-const STATS = [
-  { value:'2019', label:'שנת הקמה'   },
-  { value:'18',   label:'שחקנים בסגל' },
-  { value:'24',   label:'משחקים העונה'},
-  { value:'96',   label:'שערים העונה' }
-];
+/* המספרים הגדולים בראש העמוד.
+   כשהרשימה ריקה — האתר מחשב לבד את גודל הסגל והחלוקה לפי עמדות.
+   כשיהיו נתוני עונה אמיתיים, פשוט ממלאים כאן ומה שכתוב כאן גובר, למשל:
+   const STATS = [
+     { value:'2019', label:'שנת הקמה'    },
+     { value:'17',   label:'שחקנים בסגל' },
+     { value:'24',   label:'משחקים העונה'},
+     { value:'96',   label:'שערים העונה' }
+   ];                                                              */
+const STATS = [];
 
 /* ---- הסגל ----
-   pos: שוער / הגנה / קישור / התקפה
-   photo: שם קובץ בתיקיית images (למשל 'images/yossi.jpg'). ריק = ראשי תיבות. */
+   pos    = העמדה כפי שהיא מוצגת על הכרטיס (טקסט חופשי).
+   cat    = הקטגוריה לסינון: שוער / הגנה / קישור / התקפה.
+   n      = מספר חולצה. אפשר להשאיר ריק ופשוט לא יוצג מספר.
+   photo  = 'images/shem.jpg'. ריק = עיגול עם ראשי התיבות.
+   captain= true לקפטן.  status = 'פצוע' וכדומה.
+   apps / goals / assists = סטטיסטיקה. אם לא ממלאים — שורת המספרים
+   פשוט לא מוצגת, ואף אחד לא נראה כאילו כבש 0 שערים.               */
 const SQUAD = [
-  { n:1,  name:'יוסי כהן',      pos:'שוער',   apps:22, goals:0,  assists:1,  photo:'' },
-  { n:4,  name:'איתי לוי',      pos:'הגנה',   apps:24, goals:3,  assists:2,  photo:'', captain:true },
-  { n:5,  name:'דניאל אזולאי',  pos:'הגנה',   apps:21, goals:1,  assists:4,  photo:'' },
-  { n:6,  name:'רועי מזרחי',    pos:'הגנה',   apps:19, goals:2,  assists:1,  photo:'' },
-  { n:8,  name:'עומר פרץ',      pos:'קישור', apps:24, goals:9,  assists:12, photo:'' },
-  { n:10, name:'אלעד ניזרי',    pos:'קישור', apps:23, goals:14, assists:15, photo:'' },
-  { n:11, name:'שי ברוך',       pos:'התקפה', apps:20, goals:18, assists:6,  photo:'' },
-  { n:14, name:'נועם דהן',      pos:'קישור', apps:18, goals:5,  assists:8,  photo:'' },
-  { n:17, name:'גיא שרון',      pos:'התקפה', apps:22, goals:21, assists:7,  photo:'' },
-  { n:21, name:'ליאור אביטן',   pos:'הגנה',   apps:16, goals:0,  assists:3,  photo:'' },
-  { n:23, name:'תום גולן',      pos:'התקפה', apps:15, goals:11, assists:5,  photo:'' },
-  { n:99, name:'מתן ביטון',     pos:'שוער',   apps:6,  goals:0,  assists:0,  photo:'' }
+  { name:'אייל חזן',        pos:'חלוץ / קשר',        cat:'התקפה', photo:'' },
+  { name:'לירן ווליך',      pos:'חלוץ רחבה',          cat:'התקפה', photo:'' },
+  { name:'רז ברוכשטיין',    pos:'חלוץ רחבה',          cat:'התקפה', photo:'' },
+  { name:'דניאל בן עזרא',   pos:'חלוץ / כנף',         cat:'התקפה', photo:'' },
+  { name:'סער לייבוביץ',    pos:'חלוץ / כנף',         cat:'התקפה', photo:'' },
+
+  { name:'עומרי מרקוביץ',   pos:'קשר התקפי',          cat:'קישור', photo:'' },
+  { name:'מתן אנגרסט',      pos:'קשר התקפי / כנף',    cat:'קישור', photo:'' },
+  { name:'איתי נזרי',       pos:'קשר אמצע',           cat:'קישור', photo:'' },
+  { name:'ליעם עזרא',       pos:'קשר אמצע',           cat:'קישור', photo:'' },
+  { name:'יועד דוד',        pos:'קשר הגנתי',          cat:'קישור', photo:'' },
+  { name:'לירון דהן',       pos:'קשר / הגנתי',        cat:'קישור', photo:'' },
+
+  { name:'שניר ניצן',       pos:'בלם אמצע',           cat:'הגנה',  photo:'' },
+  { name:'אראל שניידר',     pos:'בלם',                cat:'הגנה',  photo:'' },
+  { name:'אודי כהן',        pos:'בלם',                cat:'הגנה',  photo:'' },
+  { name:'יהב אסייג',       pos:'בלם',                cat:'הגנה',  photo:'' },
+  { name:'דביר דמתי',       pos:'מגן ימין',           cat:'הגנה',  photo:'' },
+
+  { name:'ניצן זיסליס',     pos:'',                   cat:'',      photo:'', status:'פצוע' }
 ];
 
 /* ---- טבלת הליגה ----
    us:true מסמן את הקבוצה שלנו (השורה תודגש).
    form: חמשת המשחקים האחרונים — W ניצחון, D תיקו, L הפסד. */
 const LEAGUE = [
-  { team:'מכבי חברים',    p:24, w:16, d:4, l:4,  gf:96, ga:54, form:['W','W','D','W','L'], us:true },
+  { team:'המאוחדת',        p:24, w:16, d:4, l:4,  gf:96, ga:54, form:['W','W','D','W','L'], us:true },
   { team:'הפועל השכונה',  p:24, w:15, d:5, l:4,  gf:88, ga:57, form:['W','D','W','W','W'] },
   { team:'בית״ר הפארק',   p:24, w:13, d:3, l:8,  gf:74, ga:66, form:['L','W','W','D','L'] },
   { team:'מכבי הגבעה',    p:24, w:10, d:6, l:8,  gf:69, ga:70, form:['D','L','W','D','W'] },
@@ -513,37 +583,32 @@ const LEAGUE = [
   { team:'הפועל הכביש',   p:24, w:3,  d:2, l:19, gf:41, ga:98, form:['L','L','L','D','L'] }
 ];
 
-/* ---- פודקאסט ----
+/* ---- פודקאסט "הבה נרגילה" ----
    embed: קוד ההטמעה מספוטיפיי / יוטיוב / אפל.
    בספוטיפיי: שיתוף ← Embed ← מעתיקים את כתובת ה־src של ה־iframe.
    ביוטיוב: https://www.youtube.com/embed/VIDEO_ID
-   אם משאירים ריק — מוצג טקסט "הפרק בדרך". */
+   אם משאירים ריק — מוצג טקסט "הפרק בדרך".
+   להוספת פרק חדש פשוט מוסיפים שורה למעלה ברשימה.                 */
 const PODCASTS = [
-  { n:12, title:'הדרבי שכולם מדברים עליו',
-    date:'12 בספטמבר', duration:'42 דק׳',
-    desc:'ניתחנו את הפנדל השנוי במחלוקת, סיכמנו את המחזור והכרזנו על שחקן החודש.',
-    embed:'' },
-  { n:11, title:'ראיון מיוחד: מלך השערים של העונה',
-    date:'5 בספטמבר', duration:'35 דק׳',
-    desc:'שיחה עם החלוץ שכבש 21 שערים — על החימום, הנעליים ומה הוא אוכל לפני משחק.',
-    embed:'' },
-  { n:10, title:'עשרה פרקים, עשר מסקנות',
-    date:'29 באוגוסט', duration:'51 דק׳',
-    desc:'פרק חגיגי: כל הרגעים הגדולים, המביכים והמצחיקים של חצי העונה הראשונה.',
+  { n:10, title:'דביר דמתי מתארח — הפרק ה־10',
+    date:'ראשון', duration:'',
+    desc:'פרק חגיגי עם בלם המאוחדת, דביר "0% כדור, 100% רגל" דמתי. ' +
+         'בפינת "הגרזן" בדקנו כמה פריטי לבוש של קולומביה יש לו בארון, ' +
+         'ומתי בפעם האחרונה הוא נעל נעל שהיא לא בלנדסטון. ' +
+         'לכבוד הפרק העשירי הוגרלו נעלי בלנדסטון חתומות בין חברי "מאוחדת+".',
     embed:'' }
 ];
 
 /* ---- גלריה ----
-   שמים את התמונות בתיקייה football/images ומוסיפים שורה לכל אחת. */
+   שמים את התמונות בתיקייה football/images ומוסיפים שורה לכל אחת,
+   למשל: { src:'images/derby.jpg', caption:'הניצחון בדרבי' } */
 const GALLERY = [
-  { src:'', caption:'הניצחון בדרבי' },
-  { src:'', caption:'חימום לפני המשחק' },
-  { src:'', caption:'השער ה־100 של העונה' },
-  { src:'', caption:'תמונה קבוצתית' },
-  { src:'', caption:'הקהל שלנו' },
-  { src:'', caption:'הרמת הגביע' },
-  { src:'', caption:'אחרי המשחק' },
-  { src:'', caption:'האימון בגשם' }
+  { src:'', caption:'החולצה החדשה לעונת 2026/27' },
+  { src:'', caption:'הקבוצה המנצחת של השבוע' },
+  { src:'', caption:'מהמשחק האחרון' },
+  { src:'', caption:'שניר המלך — מצטיין המחזור' },
+  { src:'', caption:'ערב משחק תחת הזרקורים' },
+  { src:'', caption:'מאחורי הקלעים של "הבה נרגילה"' }
 ];
 
 /* ---- פוסטים מאינסטגרם ----
@@ -567,14 +632,42 @@ $$('[data-team-name]').forEach(el => el.textContent = TEAM.name);
 $('[data-team-tagline]').textContent = TEAM.tagline;
 document.title = TEAM.name + ' — קבוצת הכדורגל השכונתית';
 $('#igLink').href = TEAM.instagram;
+
+/* אם הוגדר קובץ לוגו — הוא מחליף את סמל ה-SVG בכל מקום שהוא מופיע */
+if (TEAM.logo){
+  $$('svg.crest-sm, svg.crest-lg').forEach(svg => {
+    const img = new Image();
+    img.src = TEAM.logo;
+    img.alt = TEAM.name;
+    img.className = svg.className.baseVal;
+    img.style.objectFit = 'contain';
+    svg.replaceWith(img);
+  });
+}
 $('#year').textContent = new Date().getFullYear();
 
 /* --- מספרים בראש --- */
-$('#statsRow').innerHTML = STATS
+const CATS = ['שוער', 'הגנה', 'קישור', 'התקפה'];
+
+function autoStats(){
+  const byCat = CATS
+    .map(c => ({ value: String(SQUAD.filter(p => p.cat === c).length), label: c }))
+    .filter(x => x.value !== '0');
+  return [{ value: String(SQUAD.length), label: 'שחקנים בסגל' }, ...byCat].slice(0, 4);
+}
+
+const statsData = STATS.length ? STATS : autoStats();
+$('#statsRow').style.gridTemplateColumns = `repeat(${Math.min(statsData.length, 4)},1fr)`;
+$('#statsRow').innerHTML = statsData
   .map(s => `<div class="stat"><b>${esc(s.value)}</b><span>${esc(s.label)}</span></div>`).join('');
 
 /* --- סגל --- */
-const POSITIONS = ['הכל', 'שוער', 'הגנה', 'קישור', 'התקפה'];
+/* מציגים רק צ'יפים של עמדות שבאמת קיימות בסגל */
+const POSITIONS = [
+  'הכל',
+  ...CATS.filter(c => SQUAD.some(p => p.cat === c)),
+  ...(SQUAD.some(p => p.status) ? ['פצועים'] : [])
+];
 let activePos = 'הכל';
 
 $('#posFilters').innerHTML = POSITIONS
@@ -584,25 +677,33 @@ function initials(name){
   return name.trim().split(/\s+/).slice(0, 2).map(w => w[0]).join('');
 }
 
+const hasStats = p => p.apps != null || p.goals != null || p.assists != null;
+
 function renderSquad(){
-  const list = activePos === 'הכל' ? SQUAD : SQUAD.filter(p => p.pos === activePos);
+  const list =
+    activePos === 'הכל'     ? SQUAD :
+    activePos === 'פצועים' ? SQUAD.filter(p => p.status) :
+                              SQUAD.filter(p => p.cat === activePos);
+
   $('#squadGrid').innerHTML = list.map(p => `
-    <article class="player">
+    <article class="player${p.status ? ' out' : ''}">
       <div class="photo">
-        <span class="shirt">${p.n}</span>
-        ${p.captain ? '<span class="cap">קפטן</span>' : ''}
+        ${p.n ? `<span class="shirt">${esc(p.n)}</span>` : ''}
+        ${p.captain ? '<span class="badge cap">קפטן</span>' : ''}
+        ${p.status  ? `<span class="badge inj">${esc(p.status)}</span>` : ''}
         ${p.photo
           ? `<img src="${esc(p.photo)}" alt="${esc(p.name)}" loading="lazy">`
           : `<span class="initials">${esc(initials(p.name))}</span>`}
       </div>
       <div class="info">
         <h3>${esc(p.name)}</h3>
-        <span class="pos">${esc(p.pos)}</span>
+        <span class="pos">${esc(p.pos || p.status || 'העמדה תתעדכן')}</span>
+        ${hasStats(p) ? `
         <div class="nums">
-          <div><b>${p.apps}</b><span>הופעות</span></div>
-          <div><b>${p.goals}</b><span>שערים</span></div>
-          <div><b>${p.assists}</b><span>בישולים</span></div>
-        </div>
+          <div><b>${p.apps    ?? 0}</b><span>הופעות</span></div>
+          <div><b>${p.goals   ?? 0}</b><span>שערים</span></div>
+          <div><b>${p.assists ?? 0}</b><span>בישולים</span></div>
+        </div>` : ''}
       </div>
     </article>`).join('');
 }
@@ -637,7 +738,12 @@ const MEDALS = ['🥇', '🥈', '🥉'];
 
 function renderRanking(el, key, label){
   const list = [...SQUAD].filter(p => p[key] > 0).sort((a, b) => b[key] - a[key]).slice(0, 8);
-  const top = list.length ? list[0][key] : 1;
+  if (!list.length){
+    el.innerHTML = `<div class="pod-empty">עוד לא נרשמו ${esc(label)} העונה — ` +
+                   `ברגע שנעדכן את הסטטיסטיקה של השחקנים, הטבלה תתמלא כאן לבד.</div>`;
+    return;
+  }
+  const top = list[0][key];
   el.innerHTML = list.map((p, i) => `
     <div class="scorer">
       <div class="medal">${MEDALS[i] || (i + 1)}</div>
